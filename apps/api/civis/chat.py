@@ -57,6 +57,7 @@ class Message(BaseModel):
     content: str
     status: Literal["complete", "incomplete", "blocked"]
     created_at: datetime
+    document_id: UUID | None = None
     citations: list[dict[str, str]] = Field(default_factory=list)
 
 
@@ -164,7 +165,8 @@ def install_chat(
                 (
                     await connection.execute(
                         text("""SELECT m.id, m.role, m.content, m.status,
-                m.created_at FROM messages m JOIN conversations c ON c.id=m.conversation_id
+                m.created_at, m.document_id FROM messages m
+                JOIN conversations c ON c.id=m.conversation_id
                 WHERE c.id=:id AND c.user_id=:owner AND c.deleted_at IS NULL
                 ORDER BY m.created_at, CASE WHEN m.role='user' THEN 0 ELSE 1 END, m.id"""),
                         {"id": conversation_id, "owner": current.id},
@@ -233,7 +235,7 @@ def install_chat(
         conversation_id: UUID, body: MessageRequest, request: Request, current: Current
     ) -> StreamingResponse:
         await owned(current.id, conversation_id)
-        if not current.verified:
+        if app.state.settings.require_email_verification and not current.verified:
             raise HTTPException(403, "email_unverified")
         if not body.content.strip() or body.attachment_ids:
             raise HTTPException(422, "validation_failed")

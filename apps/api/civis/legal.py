@@ -1,7 +1,8 @@
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from civis.config import Settings
@@ -28,11 +29,14 @@ def legal_documents(settings: Settings) -> list[LegalDocument]:
     return documents
 
 
-def install_legal(app: FastAPI, settings: Settings) -> None:
+def install_legal(
+    app: FastAPI, settings: Settings, current_dependency: Callable[..., Awaitable[Any]]
+) -> None:
+    Current = Annotated[Any, Depends(current_dependency)]
     documents = {document.document: document for document in legal_documents(settings)}
 
     @app.get("/v1/legal/{document}", response_model=LegalDocument)
-    async def legal(document: Literal["terms", "privacy"]) -> LegalDocument:
+    async def legal(document: Literal["terms", "privacy"], current: Current) -> LegalDocument:
         if document not in documents:
             raise HTTPException(404, "not_found")
         return documents[document]

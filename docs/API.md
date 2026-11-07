@@ -2,6 +2,32 @@
 
 Base path /v1. JSON unless noted. Auth via the auth service's session. All errors use one envelope with a stable machine code and a user-safe message.
 
+## Current React integration contract (2026-11-07)
+
+Code is the authority. The endpoint table below also includes future scope; it is not a completion report.
+Authentication uses existing SuperTokens `/auth/signup`, `/auth/signin`, `/auth/signout` and
+`/auth/session/refresh`, with provider httpOnly cookies. Native fetch uses `rid`, `fdi-version`
+and `st-auth-mode` headers. `/v1/me` is the session/profile check.
+Only health/readiness and provider auth are public; legal and `/openapi.json` now require a session.
+
+| Flow | Implemented contract |
+|---|---|
+| Profile/theme | GET/PATCH `/v1/me`; preferences `{theme: light,dark,system}`; server `prompts_left` |
+| Conversations | POST `{mode}`; GET list `{items,next_cursor}`; GET detail `{messages}`; PATCH `{title}` |
+| Message stream | POST `{content,mode}`; fetch SSE `meta`, `delta:{text}`, `citations`, `done`, `error` |
+| Category counts | GET `/v1/templates/categories` → `{items:[{name,count}],total}` |
+| Search/page | GET `/v1/templates?q=&category=&limit=9&cursor=0` → `{items,total,next_cursor}`; numeric offset cursor |
+| Field schema | GET `/v1/templates/{slug}` → title, category, slug, version, status, is_fake, fields |
+| Preview | POST `/v1/templates/{slug}/render` `{values,format:"html"}` → `{html}`; escaped values in `.v` spans |
+| Generate | Same route, `format:"docx"`, optional conversation_id → document metadata; JSON UUID conversation references accepted |
+| Restore document | GET `/v1/documents/{id}` → `{id,name,slug,fields,values,filename,html}`; owner only |
+| Download | GET `/v1/documents/{id}/download` → 307, five-minute signed private URL; owner only |
+| Feedback | POST `/v1/feedback` `{category,message,conversation_id?}` → 204; stored, owner checked |
+| Legal | GET `/v1/legal/{terms,privacy}` → existing owner/fake document JSON |
+
+Field definitions use `{key,label,example,max_length}`. Development draft catalog serving requires
+ALLOW_UNAPPROVED_TEMPLATES; fake records never become approved. Generation, download and downstream API smoke assertions pass locally; see STATUS.md. No new screens are implied by existing backend routes.
+
 ## Error codes
 unauthenticated (401), email_unverified (403), forbidden (403), not_found (404), validation_failed (422), quota_exhausted (402), rate_limited (429, with retry-after), model_unavailable (503), content_blocked (422), conflict (409), internal (500).
 Uploads: unsupported_file (422), file_too_large (413), unreadable_document (422), document_rejected (422), upload_quota_exceeded (429).

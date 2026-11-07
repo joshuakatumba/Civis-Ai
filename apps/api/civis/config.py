@@ -27,6 +27,10 @@ class Settings(BaseModel):
     allow_unapproved_templates: bool = False
     load_fake_seed: bool = False
     fake_legal_text: bool = False
+    fake_model: bool = False
+    require_email_verification: bool = True
+    s3_public_endpoint: str | None = None
+    document_encryption_key: SecretStr | None = None
     feature_uploads: bool = False
     free_prompts: int = 20
     llm_provider: Literal["disabled", "fake", "anthropic"] = "disabled"
@@ -40,7 +44,7 @@ class Settings(BaseModel):
     def from_env(cls, source: Mapping[str, str] | None = None) -> "Settings":
         env = os.environ if source is None else source
         production = env.get("APP_ENV") == "production"
-        flags = ["ALLOW_UNAPPROVED_TEMPLATES", "LOAD_FAKE_SEED", "FAKE_LEGAL_TEXT"]
+        flags = ["ALLOW_UNAPPROVED_TEMPLATES", "LOAD_FAKE_SEED", "FAKE_LEGAL_TEXT", "FAKE_MODEL"]
         if production and any(env.get(key, "").lower() not in ("", "false", "0") for key in flags):
             raise ValueError("Unsafe production content configuration")
         required = [
@@ -69,6 +73,9 @@ class Settings(BaseModel):
         data["environment"] = env.get("APP_ENV", "development")
         for key in flags + ["FEATURE_UPLOADS"]:
             data[key.lower()] = env.get(key, "false")
+        data["require_email_verification"] = env.get("REQUIRE_EMAIL_VERIFICATION", "true")
+        data["s3_public_endpoint"] = env.get("S3_PUBLIC_ENDPOINT")
+        data["document_encryption_key"] = env.get("DOCUMENT_ENCRYPTION_KEY")
         data["free_prompts"] = env.get("FREE_PROMPTS", "20")
         data["smtp_username"] = env.get("SMTP_USERNAME")
         data["smtp_password"] = env.get("SMTP_PASSWORD")
@@ -91,8 +98,12 @@ class Settings(BaseModel):
             raise ValueError("Uploads disabled: scanning and M4b acceptance not verified")
         if production and settings.llm_provider == "fake":
             raise ValueError("Fake provider prohibited in production")
-        if settings.llm_provider == "anthropic" and (
-            not settings.llm_model or not settings.anthropic_api_key
+        if production and not settings.require_email_verification:
+            raise ValueError("Production requires verified email")
+        if (
+            production
+            and settings.llm_provider == "anthropic"
+            and (not settings.llm_model or not settings.anthropic_api_key)
         ):
             raise ValueError("Missing model provider configuration")
         return settings

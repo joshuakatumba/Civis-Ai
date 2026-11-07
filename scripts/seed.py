@@ -38,9 +38,12 @@ async def seed() -> None:
                 VALUES (:id, :label, :is_fake, :approved, :enabled) ON CONFLICT (id) DO NOTHING"""),
                 record.model_dump(),
             )
+        from civis.templates import seed_templates
+
+        await seed_templates(engine, settings)
     finally:
         await engine.dispose()
-    print("Loaded FAKE – development only provenance marker; no legal corpus or templates loaded")
+    print("Loaded FAKE – development only provenance and template catalog; no legal corpus loaded")
 
 
 asyncio.run(seed())

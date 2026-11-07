@@ -1,3 +1,5 @@
+> Current owner scope (2026-11-07): integrate the supplied React 18/plain JSX/Vite UI with existing FastAPI/SuperTokens services. Preserve markup, copy and CSS. The earlier Next.js rebuild and milestone ordering below are historical; current scope and evidence are tracked in STATUS.md.
+
 # Decisions the owner must confirm before Codex starts
 
 Codex must not choose any of these. Defaults are proposals, not approvals.

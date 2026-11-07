@@ -251,7 +251,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 ON CONFLICT DO NOTHING"""),
                 {"id": row["id"]},
             )
-        if verified and settings.free_prompts:
+        if (verified or not settings.require_email_verification) and settings.free_prompts:
             await mutate(
                 engine,
                 row["id"],
@@ -267,7 +267,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return Profile(
             **row,
             plan="free",
-            prompts_left=int(balance or 0) if verified else 0,
+            prompts_left=int(balance or 0)
+            if verified or not settings.require_email_verification
+            else 0,
             verified=verified,
             free_allowance=settings.free_prompts,
         )
@@ -328,5 +330,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_chat(app, engine, redis, profile)
     from civis.legal import install_legal
 
-    install_legal(app, settings)
+    install_legal(app, settings, profile)
+    from civis.templates import install_templates
+
+    install_templates(app, engine, settings, profile)
+
+    @app.get("/openapi.json", include_in_schema=False)
+    async def schema(current: Current) -> dict[str, object]:
+        return app.openapi()
+
     return app

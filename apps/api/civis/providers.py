@@ -152,7 +152,11 @@ class AnthropicProvider:
 
 
 def provider_from_settings(settings: Settings) -> ModelProvider | None:
-    if settings.llm_provider == "fake":
+    if (
+        settings.llm_provider == "fake"
+        or settings.fake_model
+        or (settings.environment != "production" and not settings.anthropic_api_key)
+    ):
         if settings.environment == "production":
             raise ValueError("Fake provider prohibited in production")
         return FakeProvider.from_file(delay=float(os.environ.get("FAKE_STREAM_DELAY", "0.01")))

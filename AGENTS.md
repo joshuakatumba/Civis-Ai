@@ -1,3 +1,5 @@
+> Current owner scope (2026-11-07): integrate the supplied React 18/plain JSX/Vite UI with existing FastAPI/SuperTokens services. Preserve markup, copy and CSS. The earlier Next.js rebuild and milestone ordering below are historical; current scope and evidence are tracked in STATUS.md.
+
 # AGENTS.md — Civis
 
 Civis is an AI legal information assistant for Uganda. Users sign in, chat in Research or Drafting mode, fill document templates, download Word files, and (later) upload documents for analysis. Target scale: 5,000 registered users, about 100 concurrent streams at peak.

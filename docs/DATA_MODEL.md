@@ -1,5 +1,17 @@
 # Data model
 
+## Implemented integration subset (migration 0004)
+
+The table below describes the broader intended model. Current additions are deliberately smaller:
+`templates(id,slug,title,category)` and immutable version records with fields/body JSON,
+version, draft/approved status and is_fake; private `documents` reference owner, conversation,
+version, AES-256-GCM encrypted values, storage key and filename; `messages.document_id` links
+persisted file cards; `feedback_tickets` store owner, category, message and optional owned conversation.
+Foreign keys and an owner/date document index are applied through migration 0004, not ad-hoc changes.
+No auth-provider tables are modified. Shared catalog queries require an active authenticated owner;
+private documents and conversations filter by owner. This migration passed up/down/up on civis_test.
+API and browser generation/download acceptance now pass with the development fixtures.
+
 All ids UUID. All tables have created_at; mutable tables have updated_at. Foreign keys everywhere. Ownership checks in every query. The auth provider's user id is stored as auth_user_id.
 
 | Table | Key columns | Notes |

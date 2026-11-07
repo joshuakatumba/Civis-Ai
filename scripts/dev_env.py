@@ -1,12 +1,20 @@
 """Create local-only credentials without printing or committing them."""
 
+import base64
 import os
 import secrets
 from pathlib import Path
 
 path = Path(".env")
-if path.exists():
-    raise SystemExit(".env already exists; left unchanged")
+existing = (
+    dict(
+        line.split("=", 1)
+        for line in path.read_text().splitlines()
+        if line and not line.startswith("#")
+    )
+    if path.exists()
+    else {}
+)
 password = secrets.token_hex(24)
 auth_password = secrets.token_hex(24)
 storage_password = secrets.token_hex(24)
@@ -29,13 +37,23 @@ values = {
     "SMTP_HOST": "localhost",
     "SMTP_PORT": "51025",
     "SMTP_FROM": "civis@localhost",
-    "ALLOW_UNAPPROVED_TEMPLATES": "false",
+    "ALLOW_UNAPPROVED_TEMPLATES": "true",
     "LOAD_FAKE_SEED": "true",
     "LLM_PROVIDER": "fake",
     "LLM_MODEL": "FAKE-development",
     "FEATURE_UPLOADS": "false",
+    "REQUIRE_EMAIL_VERIFICATION": "false",
+    "FAKE_MODEL": "true",
+    "S3_PUBLIC_ENDPOINT": "http://localhost:59000",
+    "DOCUMENT_ENCRYPTION_KEY": base64.b64encode(secrets.token_bytes(32)).decode(),
 }
-fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-with os.fdopen(fd, "w") as file:
-    file.write("".join(f"{key}={value}\n" for key, value in values.items()))
-print("Created private .env for local development")
+if existing:
+    additions = {key: value for key, value in values.items() if key not in existing}
+    with path.open("a") as file:
+        file.write("\n" + "".join(f"{key}={value}\n" for key, value in additions.items()))
+    print("Existing private .env retained; missing development settings added")
+else:
+    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(fd, "w") as file:
+        file.write("".join(f"{key}={value}\n" for key, value in values.items()))
+    print("Created private .env for local development")

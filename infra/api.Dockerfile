@@ -6,5 +6,6 @@ RUN pip install --no-cache-dir -r requirements.lock && useradd --uid 10001 --cre
 COPY apps/api apps/api
 COPY apps/worker apps/worker
 COPY content/dev-fake content/dev-fake
+COPY scripts scripts
 USER 10001
 CMD ["uvicorn", "civis.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--no-proxy-headers"]

@@ -36,7 +36,9 @@ def configure_auth(settings: Settings) -> None:
         debug=False,
         recipe_list=[
             session.init(
-                cookie_secure=settings.environment == "production", anti_csrf="VIA_CUSTOM_HEADER"
+                cookie_secure=settings.environment == "production",
+                cookie_same_site="lax",
+                anti_csrf="VIA_CUSTOM_HEADER",
             ),
             emailpassword.init(
                 email_delivery=EmailDeliveryConfig(service=emailpassword.SMTPService(smtp))
