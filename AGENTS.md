@@ -8,7 +8,7 @@ If documents contradict each other, stop and ask. Do not pick one silently.
 frontend-reference/index.html is a visual reference only. Do not copy its code.
 
 ## Stack (fixed; changing it needs written approval)
-- Web: Next.js (App Router), TypeScript strict, Tailwind. PWA.
+- - Web: React 18 single-page app in plain JavaScript (.jsx), split into components. Vite is used only as the dev server and bundler. No Next.js, no TypeScript for existing UI code, no other framework.
 - API: Python, FastAPI, async. SQLAlchemy 2 async, Alembic, asyncpg. Pydantic v2 for all request, response and LLM structured outputs.
 - Workers: Arq on Redis.
 - Database: managed Postgres with pgvector. Never run Postgres in a container for production.

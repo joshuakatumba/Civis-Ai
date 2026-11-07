@@ -38,3 +38,8 @@
   Awaiting owner approval for one additional focused cycle. No failing assertion was removed.
 - Data export/deletion jobs are not implemented (M5); their UI controls remain unavailable.
 - Eight moderate npm advisories remain for M6; the detected high PostCSS advisory was fixed.
+
+## Current exact-port task (supersedes M2 frontend work)
+- No application parity failure found yet. Temporary QA harness assumed Lease search has one result; the original returns two.
+- Browser parity and Vite production build remain unfinished. Three temporary baseline files must be removed before commit.
+- The previous full-stack M2 auth failures and extra-cycle approval request are outside the new task; do not work on them.

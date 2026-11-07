@@ -1,0 +1,60 @@
+import { useState } from "react";
+import { store, ACCOUNTS, hashPw } from "../lib/storage.js";
+function Auth({ onAuth }) {
+  const [m, setM] = useState("login");
+  const [f, setF] = useState({ name: "", email: "", pw: "" });
+  const [err, setErr] = useState("");
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const email = f.email.trim().toLowerCase();
+    if (m === "signup" && !f.name.trim()) return setErr("Enter your full name.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setErr("Enter a valid email address.");
+    if (f.pw.length < 8) return setErr("Use a password of at least 8 characters.");
+    const h = await hashPw(f.pw);
+    if (m === "signup") {
+      if (ACCOUNTS[email]) return setErr("An account with this email already exists. Log in instead.");
+      ACCOUNTS[email] = { name: f.name.trim(), h };
+      store.set("civis-accounts", ACCOUNTS);
+    } else if (!ACCOUNTS[email]) {
+      return setErr("No account found for this email. Choose Sign up to create one.");
+    } else if (ACCOUNTS[email].h !== h) {
+      return setErr("Email or password is incorrect.");
+    }
+    store.set("civis-session", email);
+    onAuth({ email, name: ACCOUNTS[email].name });
+  };
+
+  return (
+    <div className="auth">
+      <div className="ahead">Civis</div>
+      <div className="amain">
+        <div className="apitch">
+          <h1>Legal help in plain language</h1>
+          <p>Ask legal questions and draft contracts, letters and notices in minutes.</p>
+          <ul><li>Clear answers you can act on</li><li>Ready-made templates for every document</li><li>Download your draft as a Word file</li></ul>
+        </div>
+        <div className="acard">
+          <div className="atabs">
+            <button type="button" className={"atab" + (m === "login" ? " on" : "")} onClick={() => { setM("login"); setErr(""); }}>Log in</button>
+            <button type="button" className={"atab" + (m === "signup" ? " on" : "")} onClick={() => { setM("signup"); setErr(""); }}>Sign up</button>
+          </div>
+          <div className="af" onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") submit(e); }}>
+            {m === "signup" && <label><span>Full name</span><input value={f.name} onChange={set("name")} autoComplete="name" /></label>}
+            <label><span>Email</span><input type="email" value={f.email} onChange={set("email")} autoComplete="email" /></label>
+            <label><span>Password</span><input type="password" value={f.pw} onChange={set("pw")} autoComplete={m === "signup" ? "new-password" : "current-password"} /></label>
+            <p className="aerr" role="alert">{err}</p>
+            <button className="abtn" type="button" onClick={submit}>{m === "signup" ? "Create account" : "Log in"}</button>
+          </div>
+          <p className="aswap">
+            {m === "signup" ? "Already have an account? " : "New to Civis? "}
+            <button type="button" onClick={() => { setM(m === "signup" ? "login" : "signup"); setErr(""); }}>{m === "signup" ? "Log in" : "Create an account"}</button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Auth;
