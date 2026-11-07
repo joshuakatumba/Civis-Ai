@@ -1,0 +1,24 @@
+name: M1 foundations
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  foundations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.12.11'
+      - run: python -m venv .venv
+      - run: .venv/bin/pip install -r requirements.lock
+      - run: python scripts/dev_env.py
+      - run: docker compose up -d --wait postgres auth-db auth redis storage mail
+      - run: docker compose exec -T postgres createdb -U civis civis_test
+      - run: python scripts/run.py .venv/bin/python scripts/bootstrap_storage.py
+        env:
+          PYTHONPATH: apps/api
+      - run: sh scripts/check_m1.sh
+      - if: always()
+        run: docker compose down

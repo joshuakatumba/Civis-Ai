@@ -1,0 +1,34 @@
+# Data model
+
+All ids UUID. All tables have created_at; mutable tables have updated_at. Foreign keys everywhere. Ownership checks in every query. The auth provider's user id is stored as auth_user_id.
+
+| Table | Key columns | Notes |
+|---|---|---|
+| users | id, auth_user_id (unique), email, name, plan_id, preferences (JSON), referral_code, deleted_at | Mirror created on first authenticated call. Email comes from the auth service, never edited locally. |
+| consents | user_id, document, version, accepted_at | Append only. |
+| conversations | id, user_id, title, mode, deleted_at | Index on user_id and updated_at. |
+| messages | id, conversation_id, role, content, status (complete, incomplete, blocked), model, input_tokens, output_tokens, retrieval_trace_id | No update after complete except feedback. |
+| citations | message_id, source_type (corpus or upload), chunk_id, upload_id, page, citation_text, source_url, as_at_date, verified | |
+| message_feedback | message_id, user_id, rating, comment | Unique per user per message. |
+| usage_ledger | id, user_id, kind (grant, spend, refund), amount, reason, request_id, refund_of, created_at | Append only. UNIQUE(request_id, kind); refund_of references the original spend. Owner approved 2026-11-07. Balance is the signed sum. |
+| usage_balance | user_id, balance | Maintained atomically with the ledger in one transaction. |
+| plans | id, name, price_ugx, prompts, duration_days | Defined by D6. |
+| subscriptions | id, user_id, plan_id, status, starts_at, ends_at, provider, provider_ref | |
+| payment_events | provider, provider_event_id (unique), payload, processed_at | Idempotency store. |
+| templates | id, slug, category, title, kind, current_version_id | |
+| template_versions | id, template_id, version, fields (JSON schema), body (structured clauses), reviewed_by, reviewed_at, status (draft, approved, retired) | Only approved versions are served. Codex must never mark a version approved. |
+| documents | id, user_id, template_version_id, values (encrypted), storage_key, created_at, expires_at | Values may contain personal data. |
+| uploads | id, user_id, conversation_id (nullable), filename, mime, size, sha256, storage_key, status, status_reason, page_count, ocr_used, quality_score, hidden_text_flag, expires_at, deleted_at | Owner filter on every query. |
+| upload_pages | upload_id, page, text, confidence | Page-level text for citation and verification. |
+| upload_chunks | id, upload_id, user_id, text, embedding, tsv | Only for documents above the context budget. Private namespace. Never joined with chunks. |
+| upload_events | upload_id, from_state, to_state, reason, at | Audit trail. |
+| corpus_documents | id, doc_type, title, citation, jurisdiction, source_url, licence, ingested_at, content_hash | |
+| chunks | id, corpus_document_id, parent_id, text, context, embedding, tsv, citation, in_force, valid_from, valid_to, embed_model | HNSW index on embedding. GIN index on tsv. |
+| feedback_tickets | id, user_id, category, message, conversation_id | |
+| audit_log | actor, action, target, at | Account deletion, exports, template approvals, billing changes, upload deletions. |
+
+## Quota operation (the only allowed way to spend a prompt)
+A single database statement that decrements the balance only if it is above zero, and inserts the ledger row keyed by the unique (request_id, kind), in one transaction. If zero rows are updated, return quota_exhausted. Replaying the same request id and operation kind must not spend twice. Refunds insert a refund row and increment, keyed by the same request id and refund kind so they also cannot repeat. A refund references an owned spend and must match its amount. This uniqueness resolution was approved by the owner on 2026-11-07.
+
+## Retention
+Defaults pending D12 and D16. Soft-deleted conversations purged after 30 days. Generated Word files expire after 7 days. Uploads per D16. Logs contain no message or document text.
