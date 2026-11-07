@@ -9,7 +9,7 @@
 - Supply support destination and transactional email credentials.
 - Confirm the quota cost for a document with exactly 15 pages.
 - Supply deployment accounts, managed Postgres with pgvector, private storage and observability credentials.
-- Enable remote CI and provide evidence that each milestone's acceptance passes.
+- M1 CI is enabled and passed (42384631605). Current integration CI and production release evidence remain pending.
 - Review SuperTokens licence and chosen auth SDK/core compatibility with counsel.
 - Run external penetration test; resolve critical/high findings.
 - Run and record production backup restore drill.

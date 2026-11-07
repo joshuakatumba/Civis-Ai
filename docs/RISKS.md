@@ -1,6 +1,6 @@
 # Known risks and things that will fail if ignored
 
-R1. Single-file prototype. Extending the prototype HTML will produce unmaintainable code. Rebuild (M2).
+R1. The owner JSX has been split into React 18 components without redesign. Local API/browser integration and backend static checks pass; production acceptance remains pending. See KNOWN_ISSUES.md.
 
 R2. Template content. Placeholder wording in the prototype is not legally reviewed. Codex cannot supply legal text. Only approved, advocate-reviewed versions may be served. Shipping unreviewed documents creates liability for the business.
 
@@ -8,7 +8,7 @@ R3. Corpus access. Retrieval is useless without a lawful corpus. Scraping source
 
 R4. Citation verification limits. It stops invented authorities. It does not stop a correct citation being misread, an outdated law being used because the corpus is stale, or advice that sounds right but is wrong for the facts. Advocate review of samples is mandatory, and the corpus needs an update process for new amendments.
 
-R5. Free-prompt abuse. Mitigations: verified email required, per-IP and per-device signals, disposable-email blocking, rate limits, spend alerts on the model account. These reduce abuse but cannot eliminate it. Set a daily spend cap on the model account.
+R5. Local-only integration allows unverified signup; production still requires email verification. Free-prompt abuse. Mitigations: verified email required, per-IP and per-device signals, disposable-email blocking, rate limits, spend alerts on the model account. These reduce abuse but cannot eliminate it. Set a daily spend cap on the model account.
 
 R6. Streaming through proxies. CDNs and hosts may buffer or time out long responses. Verified in S1, not assumed. If S1 fails, the delivery design changes.
 

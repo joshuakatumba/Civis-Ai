@@ -71,7 +71,7 @@ and is no longer configured. Backend signup, verification, login and reset have 
 - OpenTelemetry and Sentry exporter delivery has not been tested with external collector credentials.
 - Langfuse belongs to the model tracing work; M1 has no model calls to trace.
 
-## M2 additions
+## Historical M2 additions (replaced frontend)
 
 | Package | Pin | One-line justification |
 |---|---|---|
@@ -102,3 +102,11 @@ and Langfuse 3.1.0 client source/signatures. npm transitive versions are frozen 
 - https://raw.githubusercontent.com/langfuse/langfuse-python/v3.1.0/langfuse/_client/client.py
 
 Eight moderate npm advisories remain for M6 audit; the detected high PostCSS advisory was fixed.
+
+## Current React/Vite integration
+
+Active frontend pins: react/react-dom 18.3.1, vite 8.3.6, @vitejs/plugin-react 6.2.1.
+No integration dependency was added; package.json and lock are unchanged from the port input.
+The historical Next.js/TypeScript/Tailwind/SuperTokens browser SDK list above is not the active frontend.
+Existing pycryptodome 3.20.0 supplies authenticated encryption; stdlib zipfile/XML escaping supplies OOXML.
+Backend lint/typecheck now pass; this is not a dependency security audit.

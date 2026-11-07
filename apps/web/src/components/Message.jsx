@@ -9,9 +9,9 @@ const Msg = ({ m, openDoc, chat }) => {
           {m.r === "f" ? (
             <div className="file">
               <div className="fi"><Icon n="doc" /></div>
-              <div className="fm"><b>{slug(m.t)}.doc</b><i>Word document</i></div>
-              <button className="btn" onClick={() => openDoc("preview")}>Open</button>
-              <button className="ic" aria-label="Download" onClick={() => downloadDoc(chat.doc)}><Icon n="down" /></button>
+              <div className="fm"><b>{slug(m.t)}.docx</b><i>Word document</i></div>
+              <button className="btn" onClick={() => openDoc("preview", m.document_id)}>Open</button>
+              <button className="ic" aria-label="Download" onClick={() => downloadDoc({ id: m.document_id, filename: slug(m.t) + ".docx" })}><Icon n="down" /></button>
             </div>
           ) : (<><p>{m.t}</p>{m.r === "t" && <button className="btn" onClick={() => openDoc("fields")}>Open form</button>}</>)}
         </div>

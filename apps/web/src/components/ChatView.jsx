@@ -1,7 +1,7 @@
 import { IDEAS } from "../lib/api.js";
 import Templates from "./Templates.jsx";
 import Msg from "./Message.jsx";
-function ChatView({ setOpen, open, scrollRef, tplView, pickTemplate, chat, setInput, taRef, busy, openDoc, children }) {
+function ChatView({ setOpen, open, scrollRef, tplView, pickTemplate, say, chat, setInput, taRef, busy, openDoc, children }) {
   return (
       <main className="main">
         <div className="top">
@@ -10,7 +10,7 @@ function ChatView({ setOpen, open, scrollRef, tplView, pickTemplate, chat, setIn
         </div>
         <div className="scroll" ref={scrollRef} onClick={() => setOpen(false)}>
           <div className="wrap">
-            {tplView ? <Templates onPick={pickTemplate} />
+            {tplView ? <Templates onPick={pickTemplate} onError={say} />
               : chat.msgs.length === 0 ? (
                 <div className="hero">
                   <h1>What would you like to research?</h1>

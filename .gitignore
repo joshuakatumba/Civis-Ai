@@ -12,3 +12,5 @@ test-results/
 *.tsbuildinfo
 playwright-report/
 .dist/
+
+apps/web/dist/

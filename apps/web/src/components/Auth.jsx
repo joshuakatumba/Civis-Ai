@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { store, ACCOUNTS, hashPw } from "../lib/storage.js";
+import { authenticate } from "../lib/http.js";
 function Auth({ onAuth }) {
   const [m, setM] = useState("login");
   const [f, setF] = useState({ name: "", email: "", pw: "" });
@@ -12,18 +12,10 @@ function Auth({ onAuth }) {
     if (m === "signup" && !f.name.trim()) return setErr("Enter your full name.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setErr("Enter a valid email address.");
     if (f.pw.length < 8) return setErr("Use a password of at least 8 characters.");
-    const h = await hashPw(f.pw);
-    if (m === "signup") {
-      if (ACCOUNTS[email]) return setErr("An account with this email already exists. Log in instead.");
-      ACCOUNTS[email] = { name: f.name.trim(), h };
-      store.set("civis-accounts", ACCOUNTS);
-    } else if (!ACCOUNTS[email]) {
-      return setErr("No account found for this email. Choose Sign up to create one.");
-    } else if (ACCOUNTS[email].h !== h) {
-      return setErr("Email or password is incorrect.");
-    }
-    store.set("civis-session", email);
-    onAuth({ email, name: ACCOUNTS[email].name });
+    try {
+      setErr("");
+      onAuth(await authenticate(m, { email, pw: f.pw, name: f.name }));
+    } catch (error) { setErr(error.message); }
   };
 
   return (

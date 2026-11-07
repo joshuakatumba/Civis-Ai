@@ -1,81 +1,74 @@
 # Civis
 
-Uganda legal-information application under construction. The repository currently implements
-M1 foundations and an M2 workspace in progress. M2 browser auth and CI acceptance are pending;
-this is not yet the complete application. See [STATUS.md](STATUS.md) and [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+React 18/plain JSX/Vite frontend based on the owner’s Civis.jsx, with an existing FastAPI,
+Postgres, Redis, SuperTokens and private S3 backend. The active integration passes local API and browser smoke checks; production and remote CI remain unverified.
+See [STATUS.md](STATUS.md), [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and [NOTES.md](NOTES.md).
 
-## Local foundations
+## Local development
 
-Requirements: Docker with Compose v2 and Python 3.12. Ports are bound to localhost.
-Use the repository root for these commands.
-
-```sh
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.lock
-python3 scripts/dev_env.py
-docker compose up -d postgres auth-db auth redis storage mail
-python3 scripts/run.py .venv/bin/alembic -c apps/api/alembic.ini upgrade head
-python3 scripts/run.py .venv/bin/python scripts/bootstrap_storage.py
-docker compose up -d --build api worker web
-```
-
-The environment command generates private local credentials into ignored `.env`, with mode 0600.
-It never overwrites an existing file. `scripts/run.py` loads this file without printing credentials.
-MinIO is built from a pinned upstream source release because its published images are unavailable.
-The first storage build downloads the Go toolchain and dependencies and can take several minutes.
-
-- API: `http://localhost:58000/v1/health`; readiness: `/v1/ready`.
-- Provider-owned auth routes: `http://localhost:58000/auth/`.
-- Mail catcher: `http://localhost:58025`.
-- Frontend: `http://localhost:53000`. Browser auth acceptance is currently blocked; see KNOWN_ISSUES.md.
-- ClamAV is defined under the `uploads` Compose profile. Uploads remain disabled until M4b passes.
-
-Local containers are scoped to the `civis-dev` Compose project. Other existing services are not used.
-Production Postgres must be managed; this Compose file is development-only.
-
-## Development seed
+Requirements: Docker with Compose v2, Python 3, and free localhost ports listed below.
+From the repository root, the startup entry point is:
 
 ```sh
-LOAD_FAKE_SEED=true python3 scripts/run.py .venv/bin/python scripts/seed.py
+./scripts/dev.sh
 ```
 
-M1 seeds only the `FAKE – development only` provenance marker from `content/dev-fake/`.
-It does not supply legal text, corpus or templates. Imports and feature seed mechanisms belong
-to later milestones. Production rejects fake flags and loaded fake provenance even after flags are cleared.
+This generates private credentials in ignored `.env`, starts dependencies, builds containers,
+waits for auth/storage, applies migrations, creates the private bucket, seeds development
+records and starts API, worker and web. The command and browser flow have been verified locally.
+An existing `.env` retains its values; missing development settings are appended.
+See [.env.example](.env.example) for configuration. Never commit `.env`.
+For an older environment, enable `ALLOW_UNAPPROVED_TEMPLATES=true` to expose development drafts.
 
-## Tests
+- Web: <http://localhost:53000> (same-origin API/auth proxy).
+- API health: <http://localhost:58000/v1/health>; dependency health: `/v1/ready`.
+- Authenticated schema: `/openapi.json`.
+- Mail catcher: <http://localhost:58025>.
+- Private storage endpoint: <http://localhost:59000> (downloads use five-minute signed URLs).
 
-Use a dedicated disposable database for migration reversal; the check script selects `civis_test`.
-Create it once after starting the local services:
+Development uses explicitly labelled fake model/template/legal records from `content/dev-fake/`.
+The fake catalog contains three categories, including eleven templates in one category for paging.
+No legal corpus or approved legal wording is provided. `content/templates/` is untouched.
+`REQUIRE_EMAIL_VERIFICATION=false` is a local-only setting because the supplied UI has no
+verification screen. Production refuses that setting, fake flags and fake loaded provenance.
+To use Anthropic locally, set `FAKE_MODEL=false`, `LLM_PROVIDER=anthropic`, `LLM_MODEL` and
+`ANTHROPIC_API_KEY`. Without a key, development streams the labelled fake fixture.
+
+The first MinIO source build can take several minutes. All services use the `civis-dev` Compose
+project; production must use managed Postgres and separately provisioned private storage.
+For frontend-only development with the API running on port 58000:
+
+```sh
+npm --prefix apps/web ci
+npm --prefix apps/web run dev
+```
+
+## Checks
+
+Install pinned Python tooling with `python3 -m venv .venv` and
+`.venv/bin/pip install -r requirements.lock`. Use a disposable database for migration reversals:
 
 ```sh
 docker compose exec -T postgres createdb -U civis civis_test
-python3 scripts/run.py sh scripts/check_m1.sh
+CIVIS_TEST_DATABASE=1 python3 scripts/run.py .venv/bin/alembic -c apps/api/alembic.ini upgrade head
+CIVIS_TEST_DATABASE=1 python3 scripts/run.py .venv/bin/pytest apps/api/tests/test_ui_flow.py -q
+npm --prefix apps/web run build
+docker compose build api web
 ```
 
-The script runs Alembic up/down/up, lint, strict backend typechecking and tests against real
-Postgres, Redis, SuperTokens and SMTP. It never substitutes database or auth mocks.
-To run a targeted test without reversing migrations:
+The integration test uses real Postgres, Redis, SuperTokens and storage with the fake model.
+It covers server chat/quota/reload, template search/paging/escaping, generation/download,
+ownership, preferences, feedback and logout. The full smoke and the separate twenty-request quota race pass.
+The new migration completed up/down/up on `civis_test`. Browser acceptance passes locally; remote CI remains pending.
 
-```sh
-CIVIS_TEST_DATABASE=1 python3 scripts/run.py .venv/bin/pytest apps/api/tests/test_quota.py -q
-```
+## Scope
 
-`python3 scripts/feature_coverage.py` regenerates the feature status table. A row is not DONE
-until its API, frontend path and tests are all verified. The GitHub Actions M1 workflow uses the
-same dependencies and real services. A local pass does not by itself open the next milestone.
+The original UI’s CSS, classes, copy and elements are frozen; no frontend dependency was added.
+Native fetch handles cookies and SSE. Provider httpOnly cookies replace the browser account store.
+Voice input, install guidance, sharing, invites and sidebar collapse retain their original behavior.
+Stop, thumbs, citations UI, verification/reset screens, deletion/export, uploads, payments,
+real legal retrieval and production release are deferred. These are not completed features.
 
-## Configuration and deployment
-
-The API and worker are containerized and configured by environment. `APP_ENV=production`
-rejects unsafe flags, missing required settings, insecure public transport and unsafe loaded content.
-Development uses the labelled FAKE model provider and legal-content records. Real Anthropic model names and credentials come from the environment. Billing, template imports and deployment blueprints are not implemented yet.
-The production deployment runbook is M6 work; deployment is not currently supported.
-
-`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` enables explicit, payload-free request spans.
-`SENTRY_DSN` enables sanitized error reports. Raw request data, arbitrary exceptions, headers,
-personal information and document text are excluded. External exporter delivery has not been verified.
-
-Owner decisions and release requirements are listed in [OWNER_TASKS.md](OWNER_TASKS.md).
-Pinned dependencies, justifications and official API references are in [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md).
-# Civis-for-Nathan
+Optional sanitized telemetry: `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `SENTRY_DSN`,
+`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`.
+External delivery is unverified. Owner release inputs remain in [OWNER_TASKS.md](OWNER_TASKS.md).

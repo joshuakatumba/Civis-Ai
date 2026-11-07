@@ -1,3 +1,15 @@
+> Current owner scope (2026-11-07): integrate the supplied React 18/plain JSX/Vite UI with existing FastAPI/SuperTokens services. Preserve markup, copy and CSS. The earlier Next.js rebuild and milestone ordering below are historical; current scope and evidence are tracked in STATUS.md.
+
+## Current integration acceptance
+
+Backend routes and React server seams pass local integration acceptance.
+Passed: twenty-way quota race, Vite build, API/web Docker builds, Python compile,
+reversible migration and unchanged CSS/dependencies.
+The reopened UUID/Word/static-check blockers are resolved. API smoke, browser flow and complete startup pass.
+Remote integration CI and production acceptance remain pending. STATUS.md is the continuation record.
+The historical milestones below remain future product/release goals, not this task’s scope.
+
+
 # Build plan
 
 Do not start a milestone until the previous one's acceptance criteria pass in CI.

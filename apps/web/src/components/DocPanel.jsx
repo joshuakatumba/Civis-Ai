@@ -1,9 +1,6 @@
-import { KINDS } from "../data/kinds.js";
 import { downloadDoc } from "../lib/doc.js";
 import Icon from "./Icon.jsx";
-import Filled from "./Filled.jsx";
 function Panel({ doc, setDoc, onGenerate, onClose }) {
-  const K = KINDS[doc.kind];
   return (
     <aside className="panel">
       <div className="ph">
@@ -21,7 +18,7 @@ function Panel({ doc, setDoc, onGenerate, onClose }) {
         {doc.tab === "fields" ? (
           <>
             <p className="hint">Replace the examples with your details, then press Generate.</p>
-            {K.f.map(([k, label]) => {
+            {doc.fields.map(({ key: k, label }) => {
               const big = k === "det" || k === "rel";
               const common = {
                 value: doc.vals[k] ?? "",
@@ -37,12 +34,7 @@ function Panel({ doc, setDoc, onGenerate, onClose }) {
             })}
           </>
         ) : (
-          <div className="sheet">
-            <h3>{doc.name.toUpperCase()}</h3>
-            {K.b.map(([h, p], i) => (
-              <div key={i}>{h && <h4>{h}</h4>}<p><Filled p={p} d={doc} /></p></div>
-            ))}
-          </div>
+          <div className="sheet" dangerouslySetInnerHTML={{ __html: doc.html }} />
         )}
       </div>
     </aside>
