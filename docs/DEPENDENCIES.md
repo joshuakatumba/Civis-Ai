@@ -70,3 +70,35 @@ and is no longer configured. Backend signup, verification, login and reset have 
 - Arq health-job roundtrip passed against real Redis. Feature jobs belong to later milestones.
 - OpenTelemetry and Sentry exporter delivery has not been tested with external collector credentials.
 - Langfuse belongs to the model tracing work; M1 has no model calls to trace.
+
+## M2 additions
+
+| Package | Pin | One-line justification |
+|---|---|---|
+| next / eslint-config-next | 16.4.5 | Required App Router application and framework lint rules. |
+| react / react-dom | 19.3.1 | Interactive workspace and auth screens. |
+| supertokens-web-js | 0.15.0 | Provider-owned browser sessions and all five auth flows. |
+| typescript | 5.9.3 | Strict frontend typechecking. |
+| tailwindcss / @tailwindcss/postcss | 4.3.5 | Required styling stack and its build integration. |
+| postcss | 8.5.32 | CSS processing; updated to remove the detected high advisory. |
+| eslint | 9.39.1 | Frontend lint runner, compatible with pinned Next configuration. |
+| @types/node | 22.15.30 | Build/test Node types. |
+| @types/react / @types/react-dom | 19.2.2 | Strict React/DOM types. |
+| @playwright/test | 1.65.0 | Real browser integration tests. |
+| langfuse | 3.1.0 | LLM traces containing technical metadata and usage only. |
+| anyio | 4.16.0 (existing lock) | Shield persistence/refunds during client disconnect cleanup. |
+
+Official API references consulted: pinned Next 16.4.5 server/client guide, React 19.3 hooks,
+TypeScript 5.9 release notes, Tailwind 4.3 Next guide, installed SuperTokens 0.15 declarations,
+Playwright 1.65 vendor types, AnyIO 4.16 cancellation/shielding docs, Anthropic streaming API,
+and Langfuse 3.1.0 client source/signatures. npm transitive versions are frozen in package-lock.json.
+
+- https://raw.githubusercontent.com/vercel/next.js/v16.4.5/docs/01-app/01-getting-started/05-server-and-client-components.mdx
+- https://react.dev/reference/react/useState
+- https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-9.html
+- https://tailwindcss.com/docs/installation/framework-guides/nextjs
+- https://anyio.readthedocs.io/en/stable/cancellation.html
+- https://platform.claude.com/docs/en/build-with-claude/streaming
+- https://raw.githubusercontent.com/langfuse/langfuse-python/v3.1.0/langfuse/_client/client.py
+
+Eight moderate npm advisories remain for M6 audit; the detected high PostCSS advisory was fixed.

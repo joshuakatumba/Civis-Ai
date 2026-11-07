@@ -21,6 +21,8 @@ async def test_production_refuses_loaded_unsafe_content(database, fake, approved
     settings = Settings.from_env().model_copy(
         update={
             "environment": "production",
+            "llm_provider": "disabled",
+            "load_fake_seed": False,
             "api_domain": "https://api.example.invalid",
             "web_domain": "https://web.example.invalid",
         }

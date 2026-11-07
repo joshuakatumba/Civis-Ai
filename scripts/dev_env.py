@@ -30,7 +30,9 @@ values = {
     "SMTP_PORT": "51025",
     "SMTP_FROM": "civis@localhost",
     "ALLOW_UNAPPROVED_TEMPLATES": "false",
-    "LOAD_FAKE_SEED": "false",
+    "LOAD_FAKE_SEED": "true",
+    "LLM_PROVIDER": "fake",
+    "LLM_MODEL": "FAKE-development",
     "FEATURE_UPLOADS": "false",
 }
 fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)

@@ -50,7 +50,7 @@ async def test_authentication_verification_ownership_and_consents(database):
                     json={
                         "formFields": [
                             {"id": "email", "value": f"FAKE-{uuid4()}@example.invalid"},
-                            {"id": "password", "value": secrets.token_urlsafe(32)},
+                            {"id": "password", "value": ("FAKE-a1-" + secrets.token_urlsafe(32))},
                         ]
                     },
                 )
@@ -138,7 +138,7 @@ async def test_provider_password_reset_login_and_revocation():
                 json={
                     "formFields": [
                         {"id": "email", "value": email},
-                        {"id": "password", "value": secrets.token_urlsafe(32)},
+                        {"id": "password", "value": ("FAKE-a1-" + secrets.token_urlsafe(32))},
                     ]
                 },
             )
@@ -155,7 +155,7 @@ async def test_provider_password_reset_login_and_revocation():
             # Tokens remain provider-owned; never implement reset logic or inspect its tables.
             token = await create_reset_password_token("public", signup.json()["user"]["id"], email)
             assert hasattr(token, "token")
-            password = secrets.token_urlsafe(32)
+            password = ("FAKE-a1-" + secrets.token_urlsafe(32))
             reset = await client.post(
                 "/auth/user/password/reset",
                 json={

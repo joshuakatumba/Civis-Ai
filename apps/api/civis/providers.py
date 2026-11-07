@@ -1,0 +1,161 @@
+"""Model providers. No model identifiers or legal content are supplied by application code."""
+
+import asyncio
+import json
+import os
+from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Literal, Protocol
+
+import httpx
+from pydantic import BaseModel, ConfigDict, Field
+
+from civis.config import Settings
+
+
+class ModelEvent(BaseModel):
+    kind: Literal["text", "usage"]
+    text: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    finish_reason: str = "stop"
+
+
+class Turn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ModelProvider(Protocol):
+    is_fake: bool
+
+    def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[ModelEvent]: ...
+
+
+class ProviderUnavailable(Exception):
+    pass
+
+
+class FakeReply(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    label: Literal["FAKE – development only"]
+    parts: list[str] = Field(min_length=1)
+
+
+class FakeProvider:
+    is_fake = True
+
+    def __init__(
+        self, reply: FakeReply, delay: float = 0.01, failure_after: int | None = None
+    ) -> None:
+        self.reply = reply
+        self.delay = delay
+        self.failure_after = failure_after
+        self.cancelled = asyncio.Event()
+
+    @classmethod
+    def from_file(cls, failure_after: int | None = None, delay: float = 0.01) -> "FakeProvider":
+        path = Path(__file__).resolve().parents[3] / "content/dev-fake/chat.json"
+        return cls(FakeReply.model_validate_json(path.read_text()), delay, failure_after)
+
+    async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[ModelEvent]:
+        complete = False
+        try:
+            for index, part in enumerate(self.reply.parts):
+                if self.failure_after is not None and index >= self.failure_after:
+                    raise ProviderUnavailable()
+                await asyncio.sleep(self.delay)
+                yield ModelEvent(kind="text", text=part)
+            complete = True
+            yield ModelEvent(kind="usage", input_tokens=1, output_tokens=len(self.reply.parts))
+        finally:
+            if not complete:
+                self.cancelled.set()
+
+
+class RemoteUsage(BaseModel):
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+class RemoteMessage(BaseModel):
+    usage: RemoteUsage = Field(default_factory=RemoteUsage)
+
+
+class RemoteDelta(BaseModel):
+    type: str | None = None
+    text: str | None = None
+    stop_reason: str | None = None
+
+
+class RemoteEvent(BaseModel):
+    type: str
+    message: RemoteMessage | None = None
+    delta: RemoteDelta | None = None
+    usage: RemoteUsage | None = None
+
+
+class AnthropicProvider:
+    is_fake = False
+
+    def __init__(self, settings: Settings) -> None:
+        if not settings.anthropic_api_key or not settings.llm_model:
+            raise ProviderUnavailable()
+        self.settings = settings
+
+    async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[ModelEvent]:
+        settings = self.settings
+        assert settings.anthropic_api_key is not None
+        headers = {
+            "x-api-key": settings.anthropic_api_key.get_secret_value(),
+            "anthropic-version": "2023-06-01",
+        }
+        payload = {
+            "model": settings.llm_model,
+            "max_tokens": settings.llm_max_output_tokens,
+            "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+            "messages": [turn.model_dump() for turn in messages],
+            "stream": True,
+        }
+        timeout = httpx.Timeout(connect=10, read=None, write=30, pool=10)
+        input_tokens = output_tokens = 0
+        finish = "stop"
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream(
+                "POST", settings.anthropic_base_url + "/v1/messages", headers=headers, json=payload
+            ) as response:
+                if response.status_code != 200:
+                    raise ProviderUnavailable()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    event = RemoteEvent.model_validate(json.loads(line[5:].strip()))
+                    if event.type == "error":
+                        raise ProviderUnavailable()
+                    if event.message:
+                        input_tokens = event.message.usage.input_tokens
+                    if event.usage:
+                        output_tokens = event.usage.output_tokens
+                    if event.delta and event.delta.stop_reason:
+                        finish = event.delta.stop_reason
+                    if event.delta and event.delta.type == "text_delta" and event.delta.text:
+                        yield ModelEvent(kind="text", text=event.delta.text)
+                    if event.type == "message_stop":
+                        yield ModelEvent(
+                            kind="usage",
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            finish_reason=finish,
+                        )
+                        return
+                raise ProviderUnavailable()
+
+
+def provider_from_settings(settings: Settings) -> ModelProvider | None:
+    if settings.llm_provider == "fake":
+        if settings.environment == "production":
+            raise ValueError("Fake provider prohibited in production")
+        return FakeProvider.from_file(delay=float(os.environ.get("FAKE_STREAM_DELAY", "0.01")))
+    if settings.llm_provider == "anthropic":
+        return AnthropicProvider(settings)
+    return None

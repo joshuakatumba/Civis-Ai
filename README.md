@@ -1,7 +1,7 @@
 # Civis
 
 Uganda legal-information application under construction. The repository currently implements
-M1 foundations. The Next.js frontend and M2–M6 features are gated on milestone acceptance;
+M1 foundations and an M2 workspace in progress. M2 browser auth and CI acceptance are pending;
 this is not yet the complete application. See [STATUS.md](STATUS.md) and [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Local foundations
@@ -16,7 +16,7 @@ python3 scripts/dev_env.py
 docker compose up -d postgres auth-db auth redis storage mail
 python3 scripts/run.py .venv/bin/alembic -c apps/api/alembic.ini upgrade head
 python3 scripts/run.py .venv/bin/python scripts/bootstrap_storage.py
-docker compose up -d --build api worker
+docker compose up -d --build api worker web
 ```
 
 The environment command generates private local credentials into ignored `.env`, with mode 0600.
@@ -27,7 +27,7 @@ The first storage build downloads the Go toolchain and dependencies and can take
 - API: `http://localhost:58000/v1/health`; readiness: `/v1/ready`.
 - Provider-owned auth routes: `http://localhost:58000/auth/`.
 - Mail catcher: `http://localhost:58025`.
-- The frontend is not available yet. Browser auth flows are M2 work.
+- Frontend: `http://localhost:53000`. Browser auth acceptance is currently blocked; see KNOWN_ISSUES.md.
 - ClamAV is defined under the `uploads` Compose profile. Uploads remain disabled until M4b passes.
 
 Local containers are scoped to the `civis-dev` Compose project. Other existing services are not used.
@@ -69,7 +69,7 @@ same dependencies and real services. A local pass does not by itself open the ne
 
 The API and worker are containerized and configured by environment. `APP_ENV=production`
 rejects unsafe flags, missing required settings, insecure public transport and unsafe loaded content.
-Model providers, legal pages, billing, template imports and deployment blueprints are not implemented yet.
+Development uses the labelled FAKE model provider and legal-content records. Real Anthropic model names and credentials come from the environment. Billing, template imports and deployment blueprints are not implemented yet.
 The production deployment runbook is M6 work; deployment is not currently supported.
 
 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` enables explicit, payload-free request spans.

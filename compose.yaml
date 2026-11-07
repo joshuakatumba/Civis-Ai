@@ -83,6 +83,15 @@ services:
     command: ["arq", "civis_worker.WorkerSettings"]
     depends_on:
       redis: {condition: service_healthy}
+  web:
+    build:
+      context: .
+      dockerfile: infra/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${API_DOMAIN}
+    ports: ["127.0.0.1:53000:3000"]
+    depends_on:
+      api: {condition: service_started}
 volumes:
   postgres:
   auth-db:

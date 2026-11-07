@@ -27,6 +27,7 @@ from supertokens_python.recipe.session.framework.fastapi import verify_session
 from civis.auth import configure_auth
 from civis.config import Settings
 from civis.logs import configure_logging
+from civis.model_traces import ModelTracing
 from civis.quota import mutate
 from civis.telemetry import configure_telemetry, report_failure, request_tracer
 
@@ -63,6 +64,7 @@ class Profile(BaseModel):
     prompts_left: int
     preferences: Preferences
     verified: bool
+    free_allowance: int
 
 
 class Status(BaseModel):
@@ -76,6 +78,9 @@ def error(code: str, status: int, retry: int | None = None) -> JSONResponse:
         "validation_failed": "Check the submitted fields.",
         "rate_limited": "Try again later.",
         "internal": "Service unavailable.",
+        "model_unavailable": "Response unavailable.",
+        "email_unverified": "Verify your email to continue.",
+        "quota_exhausted": "No prompts remaining.",
     }
     return JSONResponse(
         {"error": {"code": code, "message": messages.get(code, "Request failed.")}},
@@ -90,6 +95,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_auth(settings)
     telemetry = configure_telemetry()
     tracer = request_tracer(telemetry)
+    model_tracing = ModelTracing()
     engine = create_async_engine(
         settings.database_url.get_secret_value(),
         hide_parameters=True,
@@ -128,10 +134,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await engine.dispose()
             await redis.aclose()
             await asyncio.to_thread(telemetry.shutdown)
+            await asyncio.to_thread(model_tracing.shutdown)
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine = engine
     app.state.redis = redis
+    app.state.settings = settings
+    app.state.model_tracing = model_tracing
+    from civis.providers import provider_from_settings
+
+    app.state.model_provider = provider_from_settings(settings)
     app.add_middleware(get_middleware())  # type: ignore[no-untyped-call]
 
     async def rate(key: str, maximum: int, window: int) -> int | None:
@@ -201,7 +213,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException) -> JSONResponse:
-        return error(str(exc.detail), exc.status_code)
+        retry = (
+            int(exc.headers["Retry-After"])
+            if exc.headers and "Retry-After" in exc.headers
+            else None
+        )
+        return error(str(exc.detail), exc.status_code, retry)
 
     async def profile(
         auth: Annotated[SessionContainer, Depends(verify_session(check_database=True))],
@@ -248,7 +265,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 text("SELECT balance FROM usage_balance WHERE user_id=:id"), {"id": row["id"]}
             )
         return Profile(
-            **row, plan="free", prompts_left=int(balance or 0) if verified else 0, verified=verified
+            **row,
+            plan="free",
+            prompts_left=int(balance or 0) if verified else 0,
+            verified=verified,
+            free_allowance=settings.free_prompts,
         )
 
     Current = Annotated[Profile, Depends(profile)]
@@ -302,4 +323,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         return Response(status_code=204)
 
+    from civis.chat import install_chat
+
+    install_chat(app, engine, redis, profile)
+    from civis.legal import install_legal
+
+    install_legal(app, settings)
     return app

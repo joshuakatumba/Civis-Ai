@@ -17,7 +17,7 @@ for line in source.splitlines():
     if section.startswith("Document uploads"):
         state, reason = "FLAGGED OFF", "M4b, scanner and advocate acceptance pending"
     else:
-        state, reason = "BLOCKED", "M1 CI acceptance and frontend path pending"
+        state, reason = "BLOCKED", "M2 browser acceptance pending"
     rows.append(f"| {feature} | {state} | {reason} |")
 status = Path("STATUS.md")
 content = status.read_text()
