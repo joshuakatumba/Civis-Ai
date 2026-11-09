@@ -48,3 +48,7 @@ External Playwright QA remains outside app dependencies; scripts/smoke_drafting.
 Research continuation found no corpus manifest or advocate labels; D9/D10 remain pending owner input.
 ULII full terms returned 403 during investigation; no access/licence permission assumed and no documents fetched.
 Added retrieval metric runner using existing pinned Pydantic/standard library; five FAKE arithmetic/input tests pass, no legal-quality score claimed.
+
+Owner-supplied Laws.Africa key verified Uganda legislation/judgment Knowledge Base access; stored privately, no key/text committed.
+Both collections are preview and sampled judgment results are summaries; full coverage was not inferred.
+Hosted Knowledge Bases would replace local embedding/index requirements; requested explicit architecture choice before changing them.

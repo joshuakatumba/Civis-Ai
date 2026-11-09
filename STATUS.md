@@ -1,5 +1,16 @@
 # Civis status
 
+## Laws.Africa access verified — 2026-11-09
+
+- Owner proposed Laws.Africa and supplied a key, stored only in ignored private .env (LAWS_AFRICA_API_KEY).
+- Live collection list and both Uganda metadata/retrieve calls returned HTTP 200: legislation-ug and judgments-ug.
+- Both collections are labelled preview; sample results include source URLs/dates; judgment sample consists of summaries.
+- Proposed hosted Knowledge Bases -> Groq -> citation/claim verification path documented in docs/LAWS_AFRICA.md.
+- Awaiting owner choice to replace the specified local index/embedding pipeline with hosted retrieval (D10/spec change).
+- No chat retrieval is enabled yet; no complete coverage, accuracy or production entitlement claimed.
+- Required next: owner architecture choice, then retrieval/verification integration and advocate relevance/answer evaluation.
+
+
 ## Research continuation — 2026-11-09
 
 - Added retrieval evaluation runner in evals/retrieval.py: Recall@K, MRR@K, MAP@K, nDCG@K and query coverage.

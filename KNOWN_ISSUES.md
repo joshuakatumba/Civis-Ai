@@ -42,3 +42,8 @@
 - content/corpus and advocate retrieval labels are absent; D9/D10 inputs are required for ingestion/model selection.
 - Retrieval scorer passes five FAKE arithmetic/input tests; no real retrieval or generation quality score is claimed.
 - ULII full terms could not be fetched (403); API/bulk access and permitted use remain unverified.
+
+## Laws.Africa access update
+- Platform key successfully retrieves both Uganda legislation and judgments Knowledge Bases (preview).
+- Access is verified; hosted retrieval architecture choice, account production terms/limits, completeness and legal accuracy remain unverified.
+- Current chat still has no retrieval; live API access does not close citation/answer acceptance.
