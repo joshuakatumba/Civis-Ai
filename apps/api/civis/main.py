@@ -144,6 +144,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from civis.providers import provider_from_settings
 
     app.state.model_provider = provider_from_settings(settings)
+    from civis.research import LawsAfricaRetriever
+
+    app.state.retriever = (
+        LawsAfricaRetriever(settings) if settings.retrieval_provider == "laws_africa" else None
+    )
     app.add_middleware(get_middleware())  # type: ignore[no-untyped-call]
 
     async def rate(key: str, maximum: int, window: int) -> int | None:

@@ -1,0 +1,14 @@
+{
+  "source": "Laws.Africa Knowledge Bases v1",
+  "country": "ug",
+  "knowledge_bases": ["legislation-ug", "judgments-ug"],
+  "access_method": "authenticated hosted retrieval; no corpus replication",
+  "api_base_url": "https://api.laws.africa/ai/v1",
+  "documentation": "https://developers.laws.africa/knowledge-bases/quick-start",
+  "licence": "Account service terms and subscribed plan; no general redistribution licence inferred",
+  "permitted_use": "Owner-authorised testing of hosted Knowledge Base grounding; production entitlement remains unverified",
+  "owner_approval": "Hosted Uganda retrieval approved by owner on 2026-11-09",
+  "coverage_status": "Provider labels both collections preview; completeness and accuracy not independently established",
+  "updates": "Hosted collection maintenance by provider; owner must review coverage and freshness before release",
+  "stores_document_text": false
+}

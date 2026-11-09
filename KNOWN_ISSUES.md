@@ -47,3 +47,11 @@
 - Platform key successfully retrieves both Uganda legislation and judgments Knowledge Bases (preview).
 - Access is verified; hosted retrieval architecture choice, account production terms/limits, completeness and legal accuracy remain unverified.
 - Current chat still has no retrieval; live API access does not close citation/answer acceptance.
+
+## Hosted Research acceptance — 2026-11-09
+- Owner approved hosted Uganda retrieval; no local embedding/index pipeline is required for this integration.
+- Fake-source integration and seven focused checks pass, including ownership, refunds, literal-quote/unknown-ID rejection and retrieval filters.
+- Real retrieval works; real grounded generation did not pass after the single context-budget fix. Observed Groq 429 and later fail-closed generation/check failures; exact later failure cause remains unresolved.
+- Live browser citation/reload acceptance has not passed; do not treat implemented source links as verified browser acceptance.
+- No dedicated owner-approved abstention/urgent/refusal messages or advocate accuracy dataset exists. Generic Drafting chat remains without retrieval.
+- Defaults/feature flag isolate the new path; private local testing enables it and returns the existing availability error on failure, without an ungrounded fallback.

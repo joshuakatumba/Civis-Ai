@@ -14,7 +14,7 @@ Only health/readiness and provider auth are public; legal and `/openapi.json` no
 |---|---|
 | Profile/theme | GET/PATCH `/v1/me`; preferences `{theme: light,dark,system}`; server `prompts_left` |
 | Conversations | POST `{mode}`; GET list `{items,next_cursor}`; GET detail `{messages}`; PATCH `{title}` |
-| Message stream | POST `{content,mode}`; fetch SSE `meta`, `delta:{text}`, `citations`, `done`, `error` |
+| Message stream | POST `{content,mode}`; fetch SSE `meta`, `delta:{text}`, `citations`, `done`, `error`; hosted Research buffers until source checks pass |
 | Category counts | GET `/v1/templates/categories` → `{items:[{name,count}],total}` |
 | Search/page | GET `/v1/templates?q=&category=&limit=9&cursor=0` → `{items,total,next_cursor}`; numeric offset cursor |
 | Field schema | GET `/v1/templates/{slug}` → title, category, slug, version, status, is_fake, fields |
@@ -91,3 +91,11 @@ Server requirements: heartbeat comment every 15 seconds, cancel the upstream mod
 
 ## Rate limits (starting values, tune with load tests)
 Per user: 30 messages per hour, 2 concurrent streams. Per IP: 120 requests per minute. Auth endpoints: 10 attempts per 15 minutes per IP and per account. Feedback: 10 per hour. Uploads: per D14.
+
+## Hosted Research citations (2026-11-09)
+
+When RETRIEVAL_PROVIDER=laws_africa, Research SSE citations and restored assistant messages contain
+`[{id,title,url,date,knowledge_base}]`. These are checked provider source metadata, not model-authored URLs.
+No new endpoint is exposed. Existing auth, ownership, hourly/concurrent limits and atomic prompt spend apply.
+Retrieval/generation/verification failure emits the existing model_unavailable stream error and refunds
+before answer text is released. Heartbeats continue during buffering; no unsupported draft is streamed.

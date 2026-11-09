@@ -30,8 +30,8 @@ intentionally reports generation as not_evaluated. Judge calibration and release
 
 # Inputs still required
 
-D9: approved source manifest identifying sources, licence/permitted use, coverage and update ownership.
-D10: at least 200 advocate query-to-section labels for the required embedding benchmark.
-The repository's content/corpus directory is empty. No corpus or advocate labels were fabricated.
+D9/D10: owner approved Laws.Africa hosted Uganda retrieval on 2026-11-09, replacing local embedding selection.
+The metadata-only source manifest is content/corpus/laws-africa-uganda.json. Advocate query-to-source labels
+are still needed to evaluate hosted relevance; no real labels were fabricated.
 ULII access was investigated; its full terms page returned 403 to the browsing tool, so no bulk/API
 permission was assumed and no document content was fetched. Source: https://ulii.org/en/terms-of-use/

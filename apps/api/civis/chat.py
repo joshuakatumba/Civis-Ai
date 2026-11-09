@@ -165,7 +165,7 @@ def install_chat(
                 (
                     await connection.execute(
                         text("""SELECT m.id, m.role, m.content, m.status,
-                m.created_at, m.document_id FROM messages m
+                m.created_at, m.document_id, m.citations FROM messages m
                 JOIN conversations c ON c.id=m.conversation_id
                 WHERE c.id=:id AND c.user_id=:owner AND c.deleted_at IS NULL
                 ORDER BY m.created_at, CASE WHEN m.role='user' THEN 0 ELSE 1 END, m.id"""),
@@ -323,7 +323,16 @@ def install_chat(
             parts: list[str] = []
             usage = ModelEvent(kind="usage")
             prompt = (Path(__file__).parent / "prompts" / f"{body.mode}-v1.txt").read_text()
-            iterator = provider.stream(prompt, history)
+            from civis.research import GroundedProvider
+
+            research = (
+                GroundedProvider(provider, app.state.retriever)
+                if body.mode == "research" and app.state.retriever is not None
+                else None
+            )
+            iterator = (
+                research.stream(prompt, history) if research else provider.stream(prompt, history)
+            )
             pending: asyncio.Task[ModelEvent] | None = None
             generation = app.state.model_tracing.start(body.mode, app.state.settings.llm_model)
 
@@ -331,7 +340,8 @@ def install_chat(
                 async with engine.begin() as connection:
                     await connection.execute(
                         text("""UPDATE messages SET content=:content,
-                        status=:status, input_tokens=:input, output_tokens=:output, updated_at=now()
+                        status=:status, input_tokens=:input, output_tokens=:output,
+                        citations=CAST(:citations AS jsonb), updated_at=now()
                         WHERE id=:id AND status='incomplete' AND EXISTS (
                             SELECT 1 FROM conversations c
                             WHERE c.id=messages.conversation_id AND c.user_id=:owner)"""),
@@ -342,6 +352,9 @@ def install_chat(
                             "status": status,
                             "input": usage.input_tokens,
                             "output": usage.output_tokens,
+                            "citations": json.dumps(
+                                research.citations if research and status == "complete" else []
+                            ),
                         },
                     )
 
@@ -376,7 +389,7 @@ def install_chat(
                     pending = asyncio.create_task(anext(iterator))
                 await persist("complete")
                 completed = True
-                yield sse("citations", [])
+                yield sse("citations", research.citations if research else [])
                 yield sse(
                     "done",
                     {

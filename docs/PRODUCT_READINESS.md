@@ -16,8 +16,7 @@ legal research/drafting quality. Implementation tasks below are proposed work, n
 redesign the frozen JSX, add arbitrary dependencies or bypass content approval.
 
 Payments are a release dependency if charging; upload analysis is a release dependency if offered.
-Hosted retrieval versus a local index is unresolved: do not build both by default. Choosing hosted
-retrieval would require an explicit update to the existing local-index specification.
+Owner approved hosted Laws.Africa Uganda retrieval on 2026-11-09; local indexing/embedding tasks are superseded for this path, not additional work to build in parallel. Release acceptance still requires source/answer evaluation.
 
 ## Testing slice completed after this audit
 
@@ -28,9 +27,11 @@ Approved-template prefill and encrypted unfinished-form autosave now pass local 
 Version pinning and stale generated-file links are fixed. Nine implemented tasks are checked below;
 these local results do not close source-verified RAG, privacy/customer lifecycle or complete release acceptance.
 
+Hosted integration update: D9/D10 approved; Uganda-only retrieval, structured answers, separate support checks, citation persistence and links are implemented. Broader checklist items below remain open until their full acceptance is met; no new task-count reduction is claimed from partial coverage.
+
 ## Code evidence and concrete gaps
 
-- `apps/api/civis/chat.py`: calls the provider without retrieval and emits an empty citations list.
+- `apps/api/civis/chat.py` now uses hosted Research retrieval when configured, buffers generation until source/support checks pass, and persists linked citations. Generic Drafting chat still has no retrieval.
 - `apps/api/civis/templates.py`: now imports the 62 owner-approved testing templates; approved-version selection is corrected. The UI pins the selected version through draft saves and generation.
 - `apps/web/src/components/Shell.jsx`: server-backed draft autosave/reload and edit invalidation now pass; broad multi-tab/concurrency acceptance remains open.
 - `apps/api/civis/templates.py` field validation currently checks field keys and length; typed/required/cross-field rules are not implemented.

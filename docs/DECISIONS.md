@@ -14,8 +14,8 @@ Codex must not choose any of these. Defaults are proposals, not approvals.
 | D6 | Plans and prices | Not defined. Needs names, price in UGX, prompt allowance, duration. | Billing cannot be built without it. |
 | D7 | Payment provider | One of Flutterwave, Pesapal, DPO | Must support MTN MoMo and Airtel Money. Verify sandbox access and webhook signing. |
 | D8 | Referral reward | None in v1: share link only, no backend | A reward invites fraud. If wanted: +5 prompts to both after the invitee verifies email, capped at 5 rewards per user. |
-| D9 | Corpus sources | Not defined | See RISKS.md R3. Blocks Milestone 3. |
-| D10 | Embedding model | Chosen by benchmark in Milestone 0, not by preference | Needs 200+ real query to correct-section pairs from advocates. |
+| D9 | Corpus sources | Owner approved Laws.Africa hosted Uganda legislation-ug and judgments-ug Knowledge Bases for testing on 2026-11-09. | Preview collections; production plan/rights and completeness require review. No local text corpus replicated. |
+| D10 | Retrieval architecture | Owner approved hosted Laws.Africa retrieval on 2026-11-09, replacing local embedding/index selection for this integration. | No local embedding/reranker is selected. Advocate query/source labels remain needed to benchmark hosted relevance. |
 | D11 | Languages | English only in v1. Luganda and Swahili input is detected and answered with a polite English-only notice. | Quality in other languages is untested. |
 | D12 | Data residency and retention | Counsel decides: where data may live, whether prompts may go to a US-based model provider, how long conversations are kept. | Data Protection and Privacy Act 2019 questions. Not an engineering call. |
 | D13 | Support channel | One support email | Feedback form delivers there. |
@@ -30,4 +30,4 @@ The owner approved using Groq through environment-configured credentials/models 
 The owner stated existing templates were counsel-approved for this use case; the 62 original Civis.jsx
 templates are copied unchanged into content/owner-supplied/templates.json and imported with that testing approval.
 This records the owner's instruction; it does not claim an independent legal review or verified legal RAG.
-Existing corpus/access and production release decisions remain unresolved.
+Hosted Uganda Knowledge Base access and architecture are now approved for testing; production release/content coverage decisions remain unresolved.

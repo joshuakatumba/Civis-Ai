@@ -9,7 +9,7 @@ import Panel from "./DocPanel.jsx";
 import Modal from "./Modal.jsx";
 const emptyChat = { id: null, title: "New chat", msgs: [], doc: null };
 const asDraft = (d) => ({ ...d, vals: d.values, tab: d.id ? "preview" : "fields", done: !!d.id, closed: false, touched: {} });
-const fromConversation = (c) => ({ ...c, title: c.title || "New chat", msgs: (c.messages || []).map((m) => ({ id: m.id, r: m.document_id ? "f" : m.role === "user" ? "u" : "a", t: m.content, document_id: m.document_id })), doc: null });
+const fromConversation = (c) => ({ ...c, title: c.title || "New chat", msgs: (c.messages || []).map((m) => ({ id: m.id, r: m.document_id ? "f" : m.role === "user" ? "u" : "a", t: m.content, document_id: m.document_id, citations: m.citations || [] })), doc: null });
 
 function Shell({ user, dark, setDark, onLogout }) {
   const [chats, setChats] = useState([emptyChat]);
@@ -173,6 +173,7 @@ function Shell({ user, dark, setDark, onLogout }) {
     try {
       await askCivis({ id, mode, content: t, onEvent: (event, data) => {
         if (event === "meta") setLeft(data.prompts_left); // SEAM: the server must own this count
+        if (event === "citations") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, citations: data } : m) }));
         if (event === "delta") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, t: m.t + data.text } : m) }));
       } });
     } catch (e) {

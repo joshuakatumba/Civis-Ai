@@ -52,3 +52,8 @@ Added retrieval metric runner using existing pinned Pydantic/standard library; f
 Owner-supplied Laws.Africa key verified Uganda legislation/judgment Knowledge Base access; stored privately, no key/text committed.
 Both collections are preview and sampled judgment results are summaries; full coverage was not inferred.
 Hosted Knowledge Bases would replace local embedding/index requirements; requested explicit architecture choice before changing them.
+
+Owner explicitly approved hosted Laws.Africa Uganda retrieval, superseding local index/embedding requirements for this path.
+Grounded answer metadata is saved through migration 0006; retrieved text remains transient and CSS/frontend dependencies are unchanged.
+Observed Groq account limit of 8000 tokens/minute and live 429 responses; one context-budget fix did not produce a passing grounded answer, so live acceptance remains open.
+Browser QA readiness/stream-body issues were corrected; final source-link/reload acceptance remains unpassed and its harness is committed.

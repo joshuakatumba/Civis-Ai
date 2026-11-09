@@ -1,14 +1,30 @@
 # Civis status
 
+## Hosted Research implementation — 2026-11-09 (acceptance incomplete)
+
+- Owner approved Laws.Africa hosted Uganda Knowledge Bases, replacing local index/embedding selection; D9/D10 and relevant docs updated.
+- Implemented Research retrieval with Uganda/link/date/lifecycle filtering, bounded source context and follow-up user context.
+- Implemented schema-validated segments, retrieved-ID/literal-quote checks and a separate model support check before any answer delta.
+- Added migration 0006 for owned message citation metadata; React renders source links/dates and restores citations from history. CSS/dependencies unchanged.
+- PASS: 13 chat/ownership/refund/disconnect/limit tests; subsequently seven focused research checks including fake-source integration, ownership, quote rejection and retrieval filters.
+- PASS: lint, strict API typecheck, Vite build, API/web/worker container builds and migration 0006 up/down/up on disposable Postgres. Local readiness ok.
+- Live Laws.Africa retrieval returned six Uganda passages. Groq returned 429 during real grounding tests (account header: 8000 tokens/minute).
+- One context-budget fix: default source context reduced to 12000 chars, local output capped at 1024 tokens, verifier supplied only cited sources. Live generation still failed closed after this fix; no further model-fix loop performed.
+- Live browser acceptance remains incomplete: initial readiness race fixed, then streaming-body QA issue fixed; final source-link/reload check has not passed. scripts/smoke_research.mjs preserves the failing acceptance harness.
+- Do not claim research ready, legal accuracy or remote CI passed. No unsupported answer was accepted as a success. Existing template/chat milestones are not redone.
+- Local RETRIEVAL_PROVIDER=laws_africa is enabled for testing and fails closed on research errors; other machines are unchanged. Default sample flag is disabled until explicitly configured.
+- Next: diagnose the recorded live generation/check failure in a newly authorised fix cycle, verify a real answer/citation reload, and obtain advocate relevance/accuracy labels, production entitlements and approved safety/abstention wording.
+
+
 ## Laws.Africa access verified — 2026-11-09
 
 - Owner proposed Laws.Africa and supplied a key, stored only in ignored private .env (LAWS_AFRICA_API_KEY).
 - Live collection list and both Uganda metadata/retrieve calls returned HTTP 200: legislation-ug and judgments-ug.
 - Both collections are labelled preview; sample results include source URLs/dates; judgment sample consists of summaries.
 - Proposed hosted Knowledge Bases -> Groq -> citation/claim verification path documented in docs/LAWS_AFRICA.md.
-- Awaiting owner choice to replace the specified local index/embedding pipeline with hosted retrieval (D10/spec change).
-- No chat retrieval is enabled yet; no complete coverage, accuracy or production entitlement claimed.
-- Required next: owner architecture choice, then retrieval/verification integration and advocate relevance/answer evaluation.
+- Owner subsequently approved hosted retrieval; the implementation/acceptance result is recorded above.
+- Hosted Research is now enabled locally for testing; complete coverage, accuracy and production entitlement are not claimed.
+- Remaining: live grounding acceptance and advocate relevance/answer evaluation.
 
 
 ## Research continuation — 2026-11-09

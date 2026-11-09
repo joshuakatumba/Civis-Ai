@@ -1,5 +1,12 @@
 # Data model
 
+## Hosted Research citations (migration 0006)
+
+`messages.citations` is non-null JSONB (default []), containing only source ID/title/URL/date/collection metadata.
+It is saved atomically with completion of the owned assistant message and restored through owned history.
+Failed or incomplete messages keep an empty citation list. Retrieved passage text is not persisted by this migration.
+
+
 ## Unfinished drafts (migration 0005)
 
 `conversation_drafts` has one owner-scoped row per conversation: template_version_id,

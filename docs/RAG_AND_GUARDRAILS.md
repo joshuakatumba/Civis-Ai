@@ -1,6 +1,29 @@
 # Retrieval, generation and guardrails
 
-Applies to Research mode and Drafting chat. Blocks on D9 (corpus) and D10 (embeddings).
+## Current hosted Research integration (owner approved 2026-11-09)
+
+D9/D10 now use Laws.Africa Uganda Knowledge Bases, replacing the local ingestion, embedding,
+vector/full-text fusion, reranker and parent-expansion requirements in sections 1–3 for this path.
+The provider owns indexing/ranking; no local corpus text or vector model is introduced.
+Research calls legislation-ug and judgments-ug concurrently, filters returned metadata to Uganda,
+excludes future versions and non-current legislation, and interleaves collection results without
+comparing incompatible scores. Last three user questions (capped at 4000 characters) inform follow-ups;
+this is bounded context, not a separate semantic rewrite/classifier.
+
+Groq returns schema-validated answer segments with retrieved source IDs. No answer text streams until
+all IDs, literal quotations and a separate model support/authority check pass. Any rejection, missing
+sources, malformed output, timeout or upstream failure withholds the answer and refunds before a delta.
+The original generic availability error is reused; an owner-supplied dedicated abstention message,
+urgent/refusal routing and full advocate safety/accuracy evaluation remain open. No replacement legal
+wording is authored. Drafting template flows are unchanged; generic Drafting chat remains without retrieval.
+
+Citation metadata (IDs, title, URL, source date, collection) is persisted under the message owner and
+shown as links with dates in the existing answer paragraph. Retrieved passages are transient server memory,
+not committed or cached. Static generation/verification prompts are versioned files. The verifier is a
+separate call using the same configured provider/model, not an independently calibrated legal judge.
+See [integration record](LAWS_AFRICA.md) and STATUS.md for verification and limitations.
+
+The sections below retain the broader target behavior, except the local pipeline superseded above.
 
 ## 1. Ingestion
 - Source manifests list each source, licence and permitted use. Ingest only manifest-approved sources.

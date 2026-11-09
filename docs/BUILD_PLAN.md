@@ -33,8 +33,8 @@ Accept: ownership tests pass; quota race test passes; migrations reversible; unv
 Next.js app with landing, auth screens, sidebar, chat, streaming, conversation CRUD, stop, feedback, error states, dark mode, PWA shell. Model integration behind the provider interface with Research and Drafting prompts.
 Accept: every M2 row of FEATURE_MAP works against the API; stream cancel works; incomplete messages persist; no localStorage auth code exists.
 
-## M3 — Retrieval and verified citations (blocked until D9 and D10)
-Ingestion, hybrid search, reranking, structured answers, verification, abstention, trace logging, eval runners, and the golden set wired into CI.
+## M3 — Retrieval and verified citations (hosted D9/D10 approved 2026-11-09)
+Owner approved Laws.Africa hosted Uganda Knowledge Bases instead of local ingestion, embeddings, hybrid search and reranking. Implement structured answers, verification, abstention, trace logging, eval runners and the advocate golden set. Hosted access is not a release-quality gate pass.
 Accept: retrieval recall at 20 meets the owner's threshold; zero fabricated authority on the safety set; abstention works on out-of-corpus questions.
 
 ## M4 — Drafting

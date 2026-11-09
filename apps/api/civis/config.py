@@ -44,6 +44,11 @@ class Settings(BaseModel):
     anthropic_base_url: str = "https://api.anthropic.com"
     llm_max_output_tokens: int = Field(default=2048, ge=1, le=8192)
     legal_content_file: str | None = None
+    retrieval_provider: Literal["disabled", "laws_africa"] = "disabled"
+    laws_africa_api_key: SecretStr | None = None
+    laws_africa_base_url: str = "https://api.laws.africa/ai/v1"
+    retrieval_top_k: int = Field(default=3, ge=1, le=10)
+    retrieval_max_chars: int = Field(default=12000, ge=6000, le=48000)
 
     @classmethod
     def from_env(cls, source: Mapping[str, str] | None = None) -> "Settings":
@@ -95,7 +100,19 @@ class Settings(BaseModel):
         data["anthropic_api_key"] = env.get("ANTHROPIC_API_KEY")
         data["anthropic_base_url"] = env.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
         data["llm_max_output_tokens"] = env.get("LLM_MAX_OUTPUT_TOKENS", "2048")
+        data["retrieval_provider"] = env.get("RETRIEVAL_PROVIDER", "disabled")
+        data["laws_africa_api_key"] = env.get("LAWS_AFRICA_API_KEY")
+        data["laws_africa_base_url"] = env.get(
+            "LAWS_AFRICA_BASE_URL", "https://api.laws.africa/ai/v1"
+        )
+        data["retrieval_top_k"] = env.get("RETRIEVAL_TOP_K", "3")
+        data["retrieval_max_chars"] = env.get("RETRIEVAL_MAX_CHARS", "12000")
         settings = cls.model_validate(data)
+        if settings.retrieval_provider == "laws_africa" and (
+            not settings.laws_africa_api_key
+            or not settings.laws_africa_base_url.startswith("https://")
+        ):
+            raise ValueError("Missing or unsafe retrieval configuration")
         if settings.free_prompts < 0:
             raise ValueError("Invalid prompt allowance")
         if production and (

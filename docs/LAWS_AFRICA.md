@@ -17,18 +17,17 @@ No key, passage text, case summary or statute text is committed here.
 - Returned text was used only for the access check and was not saved to the repository.
 - These checks prove access, not retrieval accuracy, completeness, legal correctness or production entitlement.
 
-## Proposed integration, pending owner architecture choice
+## Approved integration (owner reply, 2026-11-09)
 
 Civis server -> Laws.Africa Uganda Knowledge Bases -> bounded source context -> Groq ->
 claim/citation verification -> existing chat and persisted source links.
 Use only Uganda collection codes and validate country metadata. Keep credentials on the server.
 No local embeddings, scraping or corpus ingestion is needed for this hosted retrieval path.
-That replaces the local hybrid/vector/reranker pipeline in RAG_AND_GUARDRAILS.md and the
-local embedding benchmark decision D10; approval was requested before changing those requirements.
+Owner explicitly approved replacing the local hybrid/vector/reranker pipeline and embedding choice D10 with hosted retrieval. The active Research implementation uses that approval.
 Grounding still needs follow-up query handling, failure/quota handling, source identifiers,
 per-claim support checks, linked citations, no-source behavior and advocate evaluation.
 Hosted retrieval does not establish legal accuracy or remove the need for relevance labels.
-No retrieval integration is enabled in chat by this access check.
+Research retrieval is now implemented and enabled in the private local environment. Templates and generic Drafting chat retain their existing behavior.
 
 ## Official documentation checked
 
@@ -40,3 +39,23 @@ No retrieval integration is enabled in chat by this access check.
 The proposed path is Knowledge Bases, not full Content API corpus replication.
 Review account limits/terms before launch. Rotate the chat-shared key in the platform and replace
 its single .env entry; no code change should be needed for replacement.
+
+## Environment and operation
+
+Set RETRIEVAL_PROVIDER=laws_africa and LAWS_AFRICA_API_KEY privately. Optional
+LAWS_AFRICA_BASE_URL defaults to https://api.laws.africa/ai/v1. RETRIEVAL_TOP_K defaults to
+3 per collection; RETRIEVAL_MAX_CHARS defaults to 12000 across selected passages.
+Run ./scripts/dev.sh after updating the branch to apply migration 0006 and rebuild.
+For only key replacement, recreate API with docker compose up -d --force-recreate api.
+Local Groq testing uses LLM_MAX_OUTPUT_TOKENS=1024 to bound generation/verification requests.
+The account returned an 8000-token/minute Groq limit; larger workloads require suitable provider limits.
+Failed/unsupported answers are withheld, not silently retried or served ungrounded.
+Source expression dates are shown as metadata; they are not proof that every subsequent amendment is covered.
+
+## Acceptance status
+
+Seven focused FAKE-source/filter integration checks pass; migration round trip, static checks, builds
+and underlying chat ownership/quota/disconnect checks pass. Real retrieval succeeds, but real grounded
+generation and browser source-link/reload acceptance have not passed after one context-budget fix.
+Observed Groq rate-limit errors are not proof of the cause of every subsequent failure. The later
+fail-closed generation/check cause remains unresolved. Do not mark Research production-ready.

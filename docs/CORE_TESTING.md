@@ -49,5 +49,15 @@ Prefill uses one prompt, refunded on failure. Manual template selection, autosav
 ## Limits
 
 This gives real model chat and original template form/preview/Word flows for testing.
-Verified legal RAG and citations remain separate work.
+Hosted Research retrieval/citation integration is implemented; independent legal accuracy and safety evaluation remain open.
 The app does not yet have cross-chat memory or document-upload analysis.
+
+## Hosted Research
+
+Owner approved Laws.Africa Uganda Knowledge Bases on 2026-11-09, replacing local indexing/embeddings.
+Set RETRIEVAL_PROVIDER=laws_africa and LAWS_AFRICA_API_KEY privately, then run ./scripts/dev.sh.
+Research retrieves Uganda passages, generates structured segments, checks source IDs/quotations and runs
+a separate support check before showing text. Source links/dates survive reload. Missing sources or
+failed checks return the existing availability error and refund the prompt; no ungrounded fallback is used.
+Preview coverage, independent legal accuracy, account production entitlement and dedicated safety/abstention
+wording remain open. Generic Drafting chat is not grounded by this change.
