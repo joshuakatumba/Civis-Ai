@@ -55,3 +55,12 @@
 - Live browser citation/reload acceptance has not passed; do not treat implemented source links as verified browser acceptance.
 - No dedicated owner-approved abstention/urgent/refusal messages or advocate accuracy dataset exists. Generic Drafting chat remains without retrieval.
 - Defaults/feature flag isolate the new path; private local testing enables it and returns the existing availability error on failure, without an ungrounded fallback.
+
+## Owner screenshot follow-up
+- Confirmed immediate failure: retrieval and generation returned 200, but verification hit Groq 429 with a two-second Retry-After.
+- Added one bounded pre-output retry and typed rate-limit SSE errors/refunds, preserving source verification.
+- Empty streaming placeholders are hidden; restored incomplete messages display the existing availability error.
+- Browser QA signup exhausted its local proxy auth bucket; the counter expires normally, with no production limit relaxed.
+
+- Follow-up live diagnosis after bounded retry: both Groq calls returned 200; verifier accepted one of three generated paragraphs. All-or-nothing policy still returns an error. Owner choice on verified partial answers is pending.
+- PASS: 16 API checks, builds/static checks, and separate FAKE browser regression for error display/reload and hidden empty streaming placeholders. Real grounded-browser acceptance remains open.

@@ -17,7 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from civis.main import Profile, StrictModel
-from civis.providers import ModelEvent, Turn
+from civis.providers import ModelEvent, ProviderRateLimited, Turn
 from civis.quota import QuotaDenied, mutate
 
 Mode = Literal["research", "drafting"]
@@ -400,6 +400,15 @@ def install_chat(
                 )
             except asyncio.CancelledError:
                 raise
+            except ProviderRateLimited as error:
+                yield sse(
+                    "error",
+                    {
+                        "code": "rate_limited",
+                        "message": "Try again later.",
+                        "retry_after": error.retry_after,
+                    },
+                )
             except Exception:
                 yield sse(
                     "error", {"code": "model_unavailable", "message": "Response unavailable."}

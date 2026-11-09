@@ -9,7 +9,7 @@ import Panel from "./DocPanel.jsx";
 import Modal from "./Modal.jsx";
 const emptyChat = { id: null, title: "New chat", msgs: [], doc: null };
 const asDraft = (d) => ({ ...d, vals: d.values, tab: d.id ? "preview" : "fields", done: !!d.id, closed: false, touched: {} });
-const fromConversation = (c) => ({ ...c, title: c.title || "New chat", msgs: (c.messages || []).map((m) => ({ id: m.id, r: m.document_id ? "f" : m.role === "user" ? "u" : "a", t: m.content, document_id: m.document_id, citations: m.citations || [] })), doc: null });
+const fromConversation = (c) => ({ ...c, title: c.title || "New chat", msgs: (c.messages || []).map((m) => ({ id: m.id, r: m.document_id ? "f" : m.role === "user" ? "u" : "a", t: m.content, document_id: m.document_id, status: m.status, citations: m.citations || [] })), doc: null });
 
 function Shell({ user, dark, setDark, onLogout }) {
   const [chats, setChats] = useState([emptyChat]);

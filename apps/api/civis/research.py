@@ -14,7 +14,13 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from civis.config import Settings
-from civis.providers import ModelEvent, ModelProvider, ProviderUnavailable, Turn
+from civis.providers import (
+    ModelEvent,
+    ModelProvider,
+    ProviderRateLimited,
+    ProviderUnavailable,
+    Turn,
+)
 
 
 class Source(BaseModel):
@@ -182,17 +188,24 @@ class GroundedProvider:
     async def collect(self, system: str, messages: list[Turn]) -> str:
         parts = []
         size = 0
-        async for event in self.model.stream(system, messages):
-            if event.kind == "text":
-                size += len(event.text)
-                if size > 32000:
-                    raise ProviderUnavailable()
-                parts.append(event.text)
-            elif event.kind == "usage":
-                if event.finish_reason not in ("stop", "end_turn"):
-                    raise ProviderUnavailable()
-                self.input_tokens += event.input_tokens
-                self.output_tokens += event.output_tokens
+        for attempt in range(2):
+            try:
+                async for event in self.model.stream(system, messages):
+                    if event.kind == "text":
+                        size += len(event.text)
+                        if size > 32000:
+                            raise ProviderUnavailable()
+                        parts.append(event.text)
+                    elif event.kind == "usage":
+                        if event.finish_reason not in ("stop", "end_turn"):
+                            raise ProviderUnavailable()
+                        self.input_tokens += event.input_tokens
+                        self.output_tokens += event.output_tokens
+                break
+            except ProviderRateLimited as error:
+                if attempt or parts or error.retry_after > 15:
+                    raise
+                await asyncio.sleep(error.retry_after + 0.5)
         raw = "".join(parts).strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()

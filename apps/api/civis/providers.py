@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import math
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -34,6 +35,12 @@ class ModelProvider(Protocol):
 
 class ProviderUnavailable(Exception):
     pass
+
+
+class ProviderRateLimited(ProviderUnavailable):
+    def __init__(self, retry_after: int):
+        self.retry_after = retry_after
+        super().__init__("provider_rate_limited")
 
 
 class FakeReply(BaseModel):
@@ -204,6 +211,13 @@ class GroqProvider:
                 headers={"Authorization": "Bearer " + settings.groq_api_key.get_secret_value()},
                 json=payload,
             ) as response:
+                if response.status_code == 429:
+                    try:
+                        seconds = float(response.headers.get("retry-after", "60"))
+                        delay = max(1, min(3600, math.ceil(seconds)))
+                    except (ValueError, OverflowError):
+                        delay = 60
+                    raise ProviderRateLimited(delay)
                 if response.status_code != 200:
                     raise ProviderUnavailable()
                 async for line in response.aiter_lines():

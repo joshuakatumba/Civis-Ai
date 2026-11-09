@@ -161,3 +161,106 @@ async def test_retrieval_filters_jurisdiction_links_and_lifecycle(chat_clients, 
         "repealed": False,
         "frbr_place": "ug",
     }
+
+
+async def test_verification_retries_once_for_short_provider_limit(monkeypatch):
+    from civis.providers import ProviderRateLimited, Turn
+    from civis.research import GroundedProvider
+
+    waits = []
+
+    async def sleep(seconds):
+        waits.append(seconds)
+
+    class RateLimitedModel(FakeStructuredModel):
+        async def stream(self, system, messages):
+            if self.calls == 1:
+                self.calls += 1
+                raise ProviderRateLimited(2)
+            if self.calls == 2:
+                yield ModelEvent(kind="text", text='{"supported":[0]}')
+                self.calls += 1
+            else:
+                async for event in super().stream(system, messages):
+                    yield event
+
+    monkeypatch.setattr("civis.research.asyncio.sleep", sleep)
+    model = RateLimitedModel()
+    grounded = GroundedProvider(model, FakeRetriever())
+    result = [
+        event async for event in grounded.stream("FAKE test", [Turn(role="user", content="FAKE?")])
+    ]
+    assert result[0].text.startswith("FAKE blue marker.") and len(grounded.citations) == 1
+    assert model.calls == 3 and waits == [2.5]
+
+
+@pytest.mark.parametrize("delay,expected_calls", [(60, 1), (2, 2)])
+async def test_provider_rate_limit_does_not_loop(monkeypatch, delay, expected_calls):
+    from civis.providers import ProviderRateLimited, Turn
+    from civis.research import GroundedProvider
+
+    async def sleep(seconds):
+        pass
+
+    class AlwaysLimited(FakeStructuredModel):
+        async def stream(self, system, messages):
+            self.calls += 1
+            raise ProviderRateLimited(delay)
+            yield
+
+    monkeypatch.setattr("civis.research.asyncio.sleep", sleep)
+    model = AlwaysLimited()
+    grounded = GroundedProvider(model, FakeRetriever())
+    with pytest.raises(ProviderRateLimited):
+        [
+            event
+            async for event in grounded.stream("FAKE test", [Turn(role="user", content="FAKE?")])
+        ]
+    assert model.calls == expected_calls and grounded.citations == []
+
+
+async def test_groq_rate_header_is_sanitized(chat_clients, monkeypatch):
+    import httpx
+    from civis.providers import GroqProvider, ProviderRateLimited, Turn
+    from pydantic import SecretStr
+
+    app, _, _ = chat_clients
+    client_type = httpx.AsyncClient
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            429, headers={"retry-after": "2"}, json={"error": "FAKE private upstream body"}
+        )
+    )
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kwargs: client_type(**kwargs, transport=transport)
+    )
+    with pytest.raises(ProviderRateLimited) as error:
+        [
+            event
+            async for event in GroqProvider(
+                app.state.settings.model_copy(update={"groq_api_key": SecretStr("FAKE-token")})
+            ).stream("FAKE test", [Turn(role="user", content="FAKE")])
+        ]
+    assert error.value.retry_after == 2
+    assert "FAKE private upstream body" not in str(error.value)
+
+
+async def test_rate_limit_event_has_retry_and_refunds(chat_clients):
+    from civis.providers import ProviderRateLimited
+
+    app, client, _ = chat_clients
+
+    class Limited(FakeStructuredModel):
+        async def stream(self, system, messages):
+            raise ProviderRateLimited(60)
+            yield
+
+    app.state.retriever = FakeRetriever()
+    app.state.model_provider = Limited()
+    cid = (await client.post("/v1/conversations", json={"mode": "research"})).json()["id"]
+    response = await client.post(
+        f"/v1/conversations/{cid}/messages", json={"content": "FAKE", "mode": "research"}
+    )
+    assert '"code": "rate_limited"' in response.text and '"retry_after": 60' in response.text
+    assert "event: delta" not in response.text
+    assert (await client.get("/v1/me")).json()["prompts_left"] == 20

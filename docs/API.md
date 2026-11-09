@@ -99,3 +99,7 @@ When RETRIEVAL_PROVIDER=laws_africa, Research SSE citations and restored assista
 No new endpoint is exposed. Existing auth, ownership, hourly/concurrent limits and atomic prompt spend apply.
 Retrieval/generation/verification failure emits the existing model_unavailable stream error and refunds
 before answer text is released. Heartbeats continue during buffering; no unsupported draft is streamed.
+
+Groq 429 responses are represented as an SSE error `{code:"rate_limited",message:"Try again later.",retry_after:seconds}`.
+Research retries once only for Retry-After <=15 seconds and before any model output; other rate-limit
+failures retain the retry delay and refund the prompt before a user-visible delta. No upstream error body is exposed.

@@ -1,5 +1,16 @@
 # Civis status
 
+## Owner screenshot fix — 2026-11-09
+
+- Reproduced dismissal question: Laws.Africa retrieval 200 and valid Groq generation, followed by verification 429 with Retry-After: 2.
+- Groq rate-limit responses now carry a sanitized typed delay. Research retries once only for delays <=15 seconds before any model output; repeated/long limits emit rate_limited with retry_after and refund before a delta.
+- Preserved message status in React; empty streaming placeholders are hidden and incomplete empty responses render the existing availability text. No CSS/dependency changes.
+- PASS: 16 API tests (12 Research plus four chat checks), strict typecheck, lint, Vite/container builds and browser FAKE-history failure/reload/streaming-placeholder regression. No schema change.
+- Readiness wait now tolerates a connection reset during container startup. QA auth bucket expired normally; no limits weakened or Redis cleared.
+- Live browser still returned an error. Subsequent sanitized diagnosis: retrieval and both model calls returned 200; generator returned three paragraphs; verifier accepted only index 1. Existing all-or-nothing policy therefore withheld the answer.
+- Asked owner whether testing should show only supported paragraphs or keep withholding the whole answer. No partial-answer behavior implemented without that choice.
+- Continue from that policy answer; do not redo template/chat integration or weaken individual source checks. Research release/advocate accuracy acceptance and CI remain unverified.
+
 ## Hosted Research implementation — 2026-11-09 (acceptance incomplete)
 
 - Owner approved Laws.Africa hosted Uganda Knowledge Bases, replacing local index/embedding selection; D9/D10 and relevant docs updated.

@@ -57,3 +57,12 @@ Owner explicitly approved hosted Laws.Africa Uganda retrieval, superseding local
 Grounded answer metadata is saved through migration 0006; retrieved text remains transient and CSS/frontend dependencies are unchanged.
 Observed Groq account limit of 8000 tokens/minute and live 429 responses; one context-budget fix did not produce a passing grounded answer, so live acceptance remains open.
 Browser QA readiness/stream-body issues were corrected; final source-link/reload acceptance remains unpassed and its harness is committed.
+
+Owner screenshot reproduction isolated verification HTTP 429 after successful source retrieval and valid generation JSON.
+Added one Retry-After-aware short retry with no retry after model text; upstream bodies remain private and quota refunds remain atomic.
+Blank failure bubbles came from omitted persisted status and empty streaming placeholders; existing error text now renders without CSS changes.
+Local browser QA signup hit its shared proxy auth bucket; allowed it to expire without weakening limits or clearing Redis.
+
+After retry handling, live diagnosis showed three generated paragraphs but supported:[1]; all-or-nothing policy is the remaining observed blocker, not an assumed provider error.
+Asked owner whether to show verified partial answers; no support-check threshold or answer policy weakened while awaiting the response.
+Sixteen API checks and FAKE browser failure/reload/placeholder checks pass; real research acceptance remains open.

@@ -59,3 +59,18 @@ and underlying chat ownership/quota/disconnect checks pass. Real retrieval succe
 generation and browser source-link/reload acceptance have not passed after one context-budget fix.
 Observed Groq rate-limit errors are not proof of the cause of every subsequent failure. The later
 fail-closed generation/check cause remains unresolved. Do not mark Research production-ready.
+
+## Provider-limit fix — 2026-11-09
+
+Reproduction of the owner’s dismissal question established: both Laws.Africa calls returned 200,
+Groq generation returned valid two-segment JSON, then verification returned HTTP 429 with Retry-After: 2.
+Groq rate-limit responses now expose only a typed retry delay, never their response body. Each
+Research generation/verification call may retry once after a delay of at most 15 seconds plus a
+0.5-second margin, only if no text has arrived. Long delays or a second 429 fail without another
+retry; SSE reports rate_limited/retry_after and existing prompt refunds apply. This preserves all
+source checks. Failed restored messages show the existing availability text instead of blank bubbles.
+
+Subsequent live diagnosis returned 200 for both Groq calls, but the verifier accepted one of
+three paragraphs. Current all-or-nothing policy withheld the answer. Owner was asked whether
+partial verified answers are desired for testing; no partial-answer policy has yet changed.
+Sixteen API checks and the separate FAKE browser failure-rendering regression pass.
