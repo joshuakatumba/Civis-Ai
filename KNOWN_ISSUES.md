@@ -37,3 +37,8 @@
 - Browser live Groq prefill/autosave/reload/generate/download/regenerate now pass without JavaScript errors; external harness is committed in scripts/smoke_drafting.mjs.
 - Legal RAG/citations remain missing; natural-language approved-template prefill is implemented. No source-verified legal-answer claim is made.
 - Removed a duplicate placeholder key from private local .env after it caused Docker-only Groq 401 responses. Other machines must keep a single valid GROQ_API_KEY entry.
+
+## Research continuation
+- content/corpus and advocate retrieval labels are absent; D9/D10 inputs are required for ingestion/model selection.
+- Retrieval scorer passes five FAKE arithmetic/input tests; no real retrieval or generation quality score is claimed.
+- ULII full terms could not be fetched (403); API/bulk access and permitted use remain unverified.

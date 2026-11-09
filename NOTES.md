@@ -44,3 +44,7 @@ No frontend redesign, CSS change, new dependency or new migration; RAG/prefill/f
 Drafting verification found a duplicate placeholder GROQ_API_KEY overriding the working key in Docker; removed privately without changing or exposing the key.
 Unsaved render values could otherwise link the wrong file to a saved draft; generation now requires matching revision, template version and values.
 External Playwright QA remains outside app dependencies; scripts/smoke_drafting.mjs replaces the temporary-only harness.
+
+Research continuation found no corpus manifest or advocate labels; D9/D10 remain pending owner input.
+ULII full terms returned 403 during investigation; no access/licence permission assumed and no documents fetched.
+Added retrieval metric runner using existing pinned Pydantic/standard library; five FAKE arithmetic/input tests pass, no legal-quality score claimed.

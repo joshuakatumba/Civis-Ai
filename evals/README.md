@@ -1,0 +1,37 @@
+# Retrieval evaluation
+
+Run with the pinned backend environment (no new dependencies):
+
+```sh
+.venv/bin/python -m evals.retrieval /private/labels.jsonl /private/rankings.jsonl --k 20
+.venv/bin/pytest evals/test_retrieval.py -q
+```
+
+Each labels JSONL record has query_id, relevant (source ID to integer relevance grade 1–3),
+is_fake (explicit boolean), reviewed_by (reviewer reference). Grade 0/unjudged sources are omitted.
+An empty relevant mapping identifies an unanswerable query; these are counted separately,
+not given a perfect retrieval score. Labels and grades must come from advocate review.
+Each rankings record has the same query_id and retrieved (unique source IDs in rank order).
+Use stable section/chunk IDs, with the same granularity in both files. Keep query text and
+source text out of this interface. Keep real datasets private; no real legal dataset is bundled.
+
+The aggregate report separates retrieval from generation. It reports macro Recall@K,
+MRR@K, MAP@K (AP denominator min(K, relevant count)), nDCG@K (gain 2^grade−1),
+and query coverage (fraction with at least one relevant result in top K).
+Missing runs score zero. Duplicate/unknown query IDs and duplicate retrieved IDs are rejected.
+FAKE rows are always excluded; an empty/all-FAKE/unanswerable-only dataset fails with exit 2.
+Malformed inputs report line numbers without echoing content. Test arithmetic uses explicitly FAKE identifiers;
+it is not published as evidence of legal quality. Tests are included in default pytest discovery.
+
+This is the benchmark scorer, not a retriever, embedding model, source licence or release gate.
+No source-backed quality score is available until approved labels and ranked results exist.
+Generation must be evaluated separately using expert context and end-to-end context; this tool
+intentionally reports generation as not_evaluated. Judge calibration and release thresholds remain owner inputs.
+
+# Inputs still required
+
+D9: approved source manifest identifying sources, licence/permitted use, coverage and update ownership.
+D10: at least 200 advocate query-to-section labels for the required embedding benchmark.
+The repository's content/corpus directory is empty. No corpus or advocate labels were fabricated.
+ULII access was investigated; its full terms page returned 403 to the browsing tool, so no bulk/API
+permission was assumed and no document content was fetched. Source: https://ulii.org/en/terms-of-use/

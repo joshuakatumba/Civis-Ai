@@ -1,5 +1,9 @@
 # Evaluation
 
+## Implemented retrieval scorer (2026-11-09)
+
+`evals/retrieval.py` scores supplied advocate labels against ranked source IDs: Recall@K, MRR@K, MAP@K, nDCG@K and query coverage. See [runner contract](../evals/README.md). Missing runs score zero; FAKE fixtures are excluded and an all-FAKE dataset fails. Five local unit checks pass. No approved real dataset/ranking run exists, so no legal-quality score or generation pass is claimed.
+
 ## Datasets (in evals/, supplied and approved by advocates)
 - Golden set: 300 to 500 questions across employment, land, family, criminal procedure, contract, company, tenancy, tax, consumer and data protection. Each has required points, required sources and prohibited statements.
 - Retrieval set: 200 or more queries mapped to correct sections.

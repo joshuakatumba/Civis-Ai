@@ -5,7 +5,7 @@ Scope: all documented product capabilities and reliability work. AWS deployment,
 DNS/TLS setup, server provisioning and infrastructure operations are intentionally excluded.
 The original audit was read-only; the testing-slice updates below record subsequent implementation and local checks.
 
-There are **188 acceptance tasks** in this register: 8 completed for the local testing scope, 180 open. An open task may complete or verify
+There are **188 acceptance tasks** in this register: 9 completed for the local testing/tooling scope, 179 open. An open task may complete or verify
 an existing foundation; it does not mean the entire subsystem is absent. Counts are not an
 estimate of effort or a percentage-complete score. [OWNER] means an owner/advocate/provider input
 is required; the agent must not fabricate legal content, access rights or acceptance thresholds.
@@ -25,7 +25,7 @@ On 2026-11-09 the owner approved the original templates for testing and authoris
 Real Groq streaming/recall, 62 unchanged template imports and bounded conversation context now pass
 local checks. Approved-version selection was corrected. See CORE_TESTING.md and STATUS.md.
 Approved-template prefill and encrypted unfinished-form autosave now pass local API/live Groq/browser checks.
-Version pinning and stale generated-file links are fixed. Eight implemented tasks are checked below;
+Version pinning and stale generated-file links are fixed. Nine implemented tasks are checked below;
 these local results do not close source-verified RAG, privacy/customer lifecycle or complete release acceptance.
 
 ## Code evidence and concrete gaps
@@ -36,7 +36,7 @@ these local results do not close source-verified RAG, privacy/customer lifecycle
 - `apps/api/civis/templates.py` field validation currently checks field keys and length; typed/required/cross-field rules are not implemented.
 - `apps/worker/civis_worker.py`: only health_job exists; no ingestion, extraction, purge, export, reconciliation or support-delivery jobs.
 - `.github/workflows/m1.yml` still invokes frontend scripts absent from `apps/web/package.json`.
-- `evals/` has no tracked evaluation runner/golden dataset in the inspected file inventory; current safety tests cover configuration/log redaction, not the full legal behavior suite.
+- `evals/retrieval.py` now implements ranking metrics/coverage with FAKE exclusion; approved datasets and real ranked results remain missing. Generation/safety evaluation is still incomplete.
 - Current legal route requires authentication while the older API table says public; signup/legal-access behavior needs an explicit resolution before implementation.
 - This workspace contains an untracked SSH-key filename and nested checkout; no private key contents were read. Never stage these with product work.
 
@@ -298,7 +298,7 @@ Current state: Local fake-model smoke passes; complete AI quality evidence and c
 - [ ] EVA-02 Commit a reproducible browser acceptance harness; current integration browser checks were run from a temporary external QA directory.
 - [ ] EVA-03 [OWNER] Supply advocate-reviewed research golden set, passage relevance labels, safety cases and document QA fixtures; legal fixture content must not be invented.
 - [ ] EVA-04 Build a versioned evaluation dataset format and frozen held-out test split; exclude fake fixtures from reported legal-quality scores.
-- [ ] EVA-05 Implement retrieval Recall@K, MRR/nDCG and coverage evaluation with explicit relevance judgments.
+- [x] EVA-05 Implement retrieval Recall@K, MRR/nDCG and coverage evaluation with explicit relevance judgments.
 - [ ] EVA-06 Run generator-with-expert-context separately from full-pipeline evaluation to diagnose retrieval versus generation errors.
 - [ ] EVA-07 Evaluate claim support, completeness, factual/legal correctness, citation precision/recall and abstention separately.
 - [ ] EVA-08 Calibrate any LLM judge against advocates; report disagreement and uncertainty rather than a single opaque score.

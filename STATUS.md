@@ -1,5 +1,16 @@
 # Civis status
 
+## Research continuation — 2026-11-09
+
+- Added retrieval evaluation runner in evals/retrieval.py: Recall@K, MRR@K, MAP@K, nDCG@K and query coverage.
+- Separates retrieval from generation; missing runs score zero, FAKE fixtures never contribute to legal-quality reports.
+- PASS: five arithmetic/input/aggregation checks, lint and strict typecheck; included in default pytest discovery.
+- No app, UI, dependencies, database schema or prompt changes in this slice.
+- Required input remains D9 approved corpus/access and D10 advocate query/source labels. content/corpus is empty.
+- Asked owner for these inputs; no embedding choice, scraper, ingestion or source-backed answer claim was substituted.
+- ULII terms fetch returned 403; no bulk/API permission assumed. See evals/README.md for runner contract and inputs.
+- Continue with approved source ingestion/retrieval after those inputs; existing completed drafting/chat work stays intact.
+
 ## Immediate core testing — 2026-11-09
 
 Owner prioritised a small testable core, approved the existing Civis.jsx templates for testing,

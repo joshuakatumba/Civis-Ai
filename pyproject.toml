@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-testpaths = ["apps/api/tests"]
+testpaths = ["apps/api/tests", "evals"]
 pythonpath = ["apps/api", "apps/worker"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
