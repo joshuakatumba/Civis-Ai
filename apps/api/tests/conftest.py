@@ -60,6 +60,8 @@ async def chat_clients():
     settings = Settings.from_env().model_copy(
         update={
             "llm_provider": "fake",
+            "enable_test_fixtures": True,
+            "load_fake_seed": True,
             "retrieval_provider": "disabled",
             "allow_unapproved_templates": True,
             "llm_model": "FAKE-development",

@@ -19,13 +19,20 @@ class LegalDocument(BaseModel):
 
 def legal_documents(settings: Settings) -> list[LegalDocument]:
     path = settings.legal_content_file
-    if path is None and settings.load_fake_seed and settings.environment != "production":
+    if (
+        path is None
+        and settings.enable_test_fixtures
+        and settings.load_fake_seed
+        and settings.environment != "production"
+    ):
         path = str(Path(__file__).resolve().parents[3] / "content/dev-fake/legal.json")
     if path is None:
         return []
     documents = TypeAdapter(list[LegalDocument]).validate_json(Path(path).read_text())
     if settings.environment == "production" and any(document.is_fake for document in documents):
         raise ValueError("Fake legal content prohibited in production")
+    if not settings.enable_test_fixtures and any(document.is_fake for document in documents):
+        raise ValueError("Test legal documents require ENABLE_TEST_FIXTURES=true")
     return documents
 
 

@@ -22,7 +22,11 @@ class FakeSeed(BaseModel):
 
 async def seed() -> None:
     settings = Settings.from_env()
-    if settings.environment == "production" or not settings.load_fake_seed:
+    if (
+        settings.environment == "production"
+        or not settings.enable_test_fixtures
+        or not settings.load_fake_seed
+    ):
         raise SystemExit("Development seed requires LOAD_FAKE_SEED=true outside production")
     record = FakeSeed.model_validate(
         json.loads(Path("content/dev-fake/provenance.json").read_text())

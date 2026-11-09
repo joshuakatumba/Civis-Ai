@@ -2,7 +2,7 @@
 
 R1. The owner JSX has been split into React 18 components without redesign. Local API/browser integration and backend static checks pass; production acceptance remains pending. See KNOWN_ISSUES.md.
 
-R2. Template content. Placeholder wording in the prototype is not legally reviewed. Codex cannot supply legal text. Only approved, advocate-reviewed versions may be served. Shipping unreviewed documents creates liability for the business.
+R2. Template content. The owner confirms that the supplied Civis.jsx templates are legitimate and counsel-approved. Preserve their wording and serve the imported approved versions. Diagnostic fixtures are separate and must never enter the normal catalog. New legal wording still comes from the owner, not Codex.
 
 R3. Corpus access. Retrieval is useless without a lawful corpus. Scraping sources without permission can infringe copyright or terms. Confirm licences before M3. If no corpus is available, the "grounded in Ugandan law" claim cannot be made and the product must be positioned as general information.
 

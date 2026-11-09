@@ -37,3 +37,10 @@ Hosted Uganda Knowledge Base access and architecture are now approved for testin
 Owner explicitly chose “Withhold the whole answer” when some paragraphs pass source verification
 and others fail. No partial verified answer is released. This overrides partial-removal behavior
 for the hosted Research integration. Improving generation must not lower individual source checks.
+
+## Supplied content and user-facing runtime — owner clarification 2026-11-09
+
+Owner confirms supplied templates/content are legitimate and ready for building, and objects to
+diagnostic labels appearing in the product. The 62 owner-approved templates remain unchanged.
+Normal startup uses real providers and approved content only. Synthetic fixtures remain confined
+to explicit isolated test mode; no sample response is relabelled as a real answer.

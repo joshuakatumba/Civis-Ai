@@ -1,10 +1,16 @@
 """Create local-only credentials without printing or committing them."""
 
+import argparse
 import base64
 import os
 import secrets
 from pathlib import Path
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+    "--test-fixtures", action="store_true", help="Explicit isolated test setup only"
+)
+args = parser.parse_args()
 path = Path(".env")
 existing = (
     dict(
@@ -38,13 +44,17 @@ values = {
     "SMTP_PORT": "51025",
     "SMTP_FROM": "civis@localhost",
     "ALLOW_UNAPPROVED_TEMPLATES": "false",
-    "LOAD_FAKE_SEED": "true",
-    "LLM_PROVIDER": "fake",
-    "LLM_MODEL": "FAKE-development",
+    "LOAD_FAKE_SEED": "true" if args.test_fixtures else "false",
+    "ENABLE_TEST_FIXTURES": "true" if args.test_fixtures else "false",
+    "LLM_PROVIDER": "fake" if args.test_fixtures else "groq",
+    "LLM_MODEL": "FAKE-development" if args.test_fixtures else "",
+    "GROQ_API_KEY": "",
+    "LAWS_AFRICA_API_KEY": "",
+    "RETRIEVAL_PROVIDER": "disabled" if args.test_fixtures else "laws_africa",
     "FEATURE_UPLOADS": "false",
     "OWNER_TEMPLATES_FILE": "content/owner-supplied/templates.json",
     "REQUIRE_EMAIL_VERIFICATION": "false",
-    "FAKE_MODEL": "true",
+    "FAKE_MODEL": "true" if args.test_fixtures else "false",
     "S3_PUBLIC_ENDPOINT": "http://localhost:59000",
     "DOCUMENT_ENCRYPTION_KEY": base64.b64encode(secrets.token_bytes(32)).decode(),
 }

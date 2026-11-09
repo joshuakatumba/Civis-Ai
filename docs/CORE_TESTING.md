@@ -61,3 +61,16 @@ a separate support check before showing text. Source links/dates survive reload.
 failed checks return the existing availability error and refund the prompt; no ungrounded fallback is used.
 Preview coverage, independent legal accuracy, account production entitlement and dedicated safety/abstention
 wording remain open. Generic Drafting chat is not grounded by this change.
+
+## Correct real-service startup after older sample defaults
+
+The owner-approved templates are legitimate supplied content, not fixtures. To correct an existing
+server environment that selected canned replies, run `sudo python3 scripts/configure_live.py`,
+then `sudo ./scripts/dev.sh`. Missing API keys are requested privately without echoing; existing
+database/storage credentials remain intact. The helper retains a configured real model or reads
+the model setting from .env.example when replacing the old diagnostic model.
+
+Normal startup does not seed sample content and fails preflight rather than serving a test model.
+ENABLE_TEST_FIXTURES is false by default and required to select test providers/catalog/legal fixtures.
+Automated isolated setup uses scripts/dev_env.py --test-fixtures. Diagnostic assistant records remain
+stored but are excluded from normal history/model context; no user messages or documents are erased.

@@ -28,6 +28,7 @@ class Settings(BaseModel):
     load_fake_seed: bool = False
     fake_legal_text: bool = False
     fake_model: bool = False
+    enable_test_fixtures: bool = False
     require_email_verification: bool = True
     s3_public_endpoint: str | None = None
     document_encryption_key: SecretStr | None = None
@@ -54,7 +55,13 @@ class Settings(BaseModel):
     def from_env(cls, source: Mapping[str, str] | None = None) -> "Settings":
         env = os.environ if source is None else source
         production = env.get("APP_ENV") == "production"
-        flags = ["ALLOW_UNAPPROVED_TEMPLATES", "LOAD_FAKE_SEED", "FAKE_LEGAL_TEXT", "FAKE_MODEL"]
+        flags = [
+            "ALLOW_UNAPPROVED_TEMPLATES",
+            "LOAD_FAKE_SEED",
+            "FAKE_LEGAL_TEXT",
+            "FAKE_MODEL",
+            "ENABLE_TEST_FIXTURES",
+        ]
         if production and any(env.get(key, "").lower() not in ("", "false", "0") for key in flags):
             raise ValueError("Unsafe production content configuration")
         required = [
@@ -90,7 +97,7 @@ class Settings(BaseModel):
         data["smtp_username"] = env.get("SMTP_USERNAME")
         data["smtp_password"] = env.get("SMTP_PASSWORD")
         data["llm_provider"] = env.get("LLM_PROVIDER", "disabled")
-        data["legal_content_file"] = env.get("LEGAL_CONTENT_FILE")
+        data["legal_content_file"] = env.get("LEGAL_CONTENT_FILE") or None
         data["llm_model"] = env.get("LLM_MODEL")
         data["groq_api_key"] = env.get("GROQ_API_KEY")
         data["groq_base_url"] = env.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")

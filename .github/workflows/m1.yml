@@ -13,7 +13,7 @@ jobs:
           python-version: '3.12.11'
       - run: python -m venv .venv
       - run: .venv/bin/pip install -r requirements.lock
-      - run: python scripts/dev_env.py
+      - run: python scripts/dev_env.py --test-fixtures
       - run: docker compose up -d --wait postgres auth-db auth redis storage mail
       - run: docker compose exec -T postgres createdb -U civis civis_test
       - run: python scripts/run.py .venv/bin/python scripts/bootstrap_storage.py

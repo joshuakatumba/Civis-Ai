@@ -92,6 +92,14 @@ def install_chat(
     current_dependency: Callable[..., Awaitable[Profile]],
 ) -> None:
     Current = Annotated[Profile, Depends(current_dependency)]
+    runtime_only = (
+        ""
+        if app.state.settings.enable_test_fixtures
+        else """
+        AND (m.role <> 'assistant' OR (
+            coalesce(m.model,'') NOT LIKE 'FAKE%'
+            AND m.content NOT LIKE 'FAKE – development only%'))"""
+    )
 
     async def owned(owner: UUID, conversation: UUID) -> dict[str, Any]:
         async with engine.connect() as connection:
@@ -164,11 +172,15 @@ def install_chat(
             rows = (
                 (
                     await connection.execute(
-                        text("""SELECT m.id, m.role, m.content, m.status,
+                        text(
+                            """SELECT m.id, m.role, m.content, m.status,
                 m.created_at, m.document_id, m.citations FROM messages m
                 JOIN conversations c ON c.id=m.conversation_id
-                WHERE c.id=:id AND c.user_id=:owner AND c.deleted_at IS NULL
-                ORDER BY m.created_at, CASE WHEN m.role='user' THEN 0 ELSE 1 END, m.id"""),
+                WHERE c.id=:id AND c.user_id=:owner AND c.deleted_at IS NULL"""
+                            + runtime_only
+                            + " ORDER BY m.created_at, "
+                            "CASE WHEN m.role='user' THEN 0 ELSE 1 END, m.id"
+                        ),
                         {"id": conversation_id, "owner": current.id},
                     )
                 )
@@ -291,12 +303,15 @@ def install_chat(
                 rows = (
                     (
                         await connection.execute(
-                            text("""SELECT m.role, m.content FROM messages m
+                            text(
+                                """SELECT m.role, m.content FROM messages m
                     JOIN conversations c ON c.id=m.conversation_id
                     WHERE c.id=:id AND c.user_id=:owner AND m.status='complete'
-                    AND m.document_id IS NULL AND m.content<>''
-                    ORDER BY m.created_at DESC,
-                        CASE WHEN m.role='assistant' THEN 0 ELSE 1 END, m.id DESC LIMIT 60"""),
+                    AND m.document_id IS NULL AND m.content<>''"""
+                                + runtime_only
+                                + """ ORDER BY m.created_at DESC,
+                        CASE WHEN m.role='assistant' THEN 0 ELSE 1 END, m.id DESC LIMIT 60"""
+                            ),
                             {"id": conversation_id, "owner": current.id},
                         )
                     )

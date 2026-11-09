@@ -1,5 +1,19 @@
 # Civis status
 
+## User-facing test-response leak fixed — 2026-11-09
+
+- Owner reported deployed UI showing a canned diagnostic reply during a presentation. Root cause: dev_env.py still selected the test provider/seed, and provider selection silently fell back to canned replies without keys.
+- Normal defaults now select Groq and hosted Uganda retrieval, disable fixture flags, and no longer run sample seeding. CI opts into isolated fixtures explicitly.
+- Removed automatic canned-provider fallback. Explicit test providers require ENABLE_TEST_FIXTURES=true; normal startup preflight rejects fixture/catalog settings.
+- Normal history/model context excludes prior diagnostic assistant replies without deleting records; normal catalog excludes fixture versions even if an old unapproved-template flag remains set.
+- Supplied owner-approved 62-template content is unchanged. Owner confirmed legitimacy/counsel approval; docs corrected. No UI/CSS/dependency/schema changes.
+- Added scripts/configure_live.py: private masked key setup, live flags, duplicate live-setting cleanup, atomic 0600 .env write, existing database/storage credentials retained.
+- PASS: 15 tests covering defaults, no silent fallback, explicit test isolation, config credential preservation, real-auth live history/catalog isolation, legal isolation, production guard and chat/quota/document flows.
+- PASS: lint, strict API typecheck, API/worker builds, local live preflight and readiness. Local private configuration switched to fixture-free real services.
+- Server remains separately configured: fetch integrate/civis-ui-api, run sudo python3 scripts/configure_live.py, then sudo ./scripts/dev.sh. No remote AWS access or server fix is claimed.
+- Real Research verification remains the separate unresolved acceptance issue; removing sample replies does not establish a passing grounded answer.
+
+
 ## Whole-answer decision and evidence-first generation — 2026-11-09
 
 - Owner explicitly chose “Withhold the whole answer”; partial supported paragraphs are never released.

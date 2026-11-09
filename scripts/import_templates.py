@@ -12,7 +12,7 @@ async def main() -> None:
     engine = create_async_engine(settings.database_url.get_secret_value(), hide_parameters=True)
     try:
         count = await import_owner_templates(engine, settings)
-        print(f"Imported {count} owner-approved testing templates")
+        print(f"Imported {count} owner-approved templates")
     finally:
         await engine.dispose()
 

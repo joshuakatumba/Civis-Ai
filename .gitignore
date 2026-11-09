@@ -17,3 +17,5 @@ apps/web/dist/
 
 *.pem
 Civis-Ai/
+
+.env-live-*

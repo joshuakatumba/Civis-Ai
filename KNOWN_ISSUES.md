@@ -69,3 +69,9 @@
 - Owner confirmed whole-answer withholding; generation now requires exact source evidence for every cited source and one concise paragraph.
 - Explicit verifier indexes and new literal-evidence gates preserve the all-or-nothing policy; no failed paragraph can leak as a partial answer.
 - The live dismissal-question browser check still returns an error with v2 evidence-first generation. No passing live Research acceptance is claimed; the failure-stage diagnosis remains required.
+
+## Presentation/runtime correction
+- The deployed screenshot came from the canned provider, not from labels on the approved template definitions. Normal startup defaults and fallback behavior are corrected.
+- Real services now require actual credentials; an invalid/missing provider no longer returns a diagnostic reply.
+- Existing server .env is private and not changed by git pull; run scripts/configure_live.py before rebuilding. Existing storage/database passwords are retained.
+- Fifteen configuration/auth/catalog/history/isolation/document tests pass; real Research verification remains open and is not hidden by this change.

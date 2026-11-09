@@ -251,7 +251,11 @@ def install_templates(
         "s3", endpoint_url=settings.s3_public_endpoint or settings.s3_endpoint, **arguments
     )
     visible = "(v.status='approved' AND NOT v.is_fake)"
-    if settings.environment != "production" and settings.allow_unapproved_templates:
+    if (
+        settings.environment != "production"
+        and settings.enable_test_fixtures
+        and settings.allow_unapproved_templates
+    ):
         visible = "true"
     catalog = (
         """SELECT t.slug,t.title,t.category,v.id AS version_id,v.version,v.fields,v.body,

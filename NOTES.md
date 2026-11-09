@@ -71,3 +71,9 @@ Owner explicitly chose withholding the whole answer; no partial-response policy 
 Added evidence-first v2 prompts, literal evidence/source-ID validation and explicit verifier indexes; source excerpts remain transient.
 Fourteen research checks plus five retrieval metric checks pass, including one-of-three support withholding and invalid-evidence refunds.
 The v2 live dismissal browser check returned an error after its one generation fix; no further prompt loop or partial-answer workaround was applied.
+
+Owner reported presentation exposed canned test output; traced to unsafe startup defaults, retained server flags and automatic model fallback.
+Normal startup now uses real services with explicit preflight, no sample seeding and no silent canned fallback; tests opt into fixtures explicitly.
+Live history excludes diagnostic assistant records without deleting user data; live catalog preserves all 62 approved owner templates and isolates fixtures.
+Added masked private live-configuration helper that preserves database credentials; no server access or deployment completion is claimed.
+Fifteen relevant tests and API/worker build/static/readiness checks pass; Research legal-answer acceptance remains separately unresolved.

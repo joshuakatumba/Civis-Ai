@@ -251,15 +251,13 @@ def provider_from_settings(settings: Settings) -> ModelProvider | None:
     if settings.fake_model or settings.llm_provider == "fake":
         if settings.environment == "production":
             raise ValueError("Fake provider prohibited in production")
+        if not settings.enable_test_fixtures:
+            raise ValueError(
+                "Test model requires ENABLE_TEST_FIXTURES=true; configure a real provider"
+            )
         return FakeProvider.from_file(delay=float(os.environ.get("FAKE_STREAM_DELAY", "0.01")))
     if settings.llm_provider == "groq":
         return GroqProvider(settings)
     if settings.llm_provider == "anthropic":
         return AnthropicProvider(settings)
-    if (
-        settings.environment != "production"
-        and not settings.anthropic_api_key
-        and not settings.groq_api_key
-    ):
-        return FakeProvider.from_file()
     return None

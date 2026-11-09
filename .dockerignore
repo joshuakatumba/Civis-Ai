@@ -15,3 +15,5 @@ frontend-reference
 
 *.pem
 Civis-Ai/
+
+.env-live-*
