@@ -10,15 +10,18 @@ and authorised Groq with environment-only credentials. See [docs/CORE_TESTING.md
 - New drafts no longer hide the latest approved template version. FAKE fixtures remain separate.
 - Chat history is persisted per owner/conversation; each request uses up to 60 completed non-file messages,
   limited by LLM_HISTORY_MAX_CHARS (default 24000). Older history remains in Postgres; no cross-chat memory/summarisation.
-- Unsubmitted forms remain browser state; generated documents/values reopen from the server.
-- PASS: six targeted tests including live Groq streaming/recall, real database/auth conversation memory/ownership,
-  quota and API smoke, and all 62 templates' preview/Word text equivalence.
+- Unfinished forms now autosave encrypted values per owner/conversation, pin template versions and reject stale saves.
+- Natural-language Drafting selects approved templates and prefills literal stated facts; missing facts stay blank.
+- Editing clears the active generated-file reference; earlier documents remain immutable in chat history.
+- PASS: ten targeted API tests across drafting, chat memory, quota/refunds, ownership, generation and all-template text equivalence; additional live Groq prefill verification passes.
 - PASS: live HTTP flow through the web proxy: signup, Groq stream, recall, history reload, quota, owner template
   preview/generate/reopen/download and logout. Readiness ok; frontend HTTP 200; all nine services running locally.
 - PASS: lint, strict backend typecheck and API/web/worker container builds. No CSS/frontend dependency changes.
-- Browser automation could not run because the temporary external QA harness was absent; no new browser pass is claimed.
-- No new migration was needed. Existing fake-data tests and previous migration results remain within their stated scope.
-- Still outside this completed slice: verified legal RAG/citations, automatic template prefill and unfinished-form persistence.
+- PASS: browser live Groq prefill, literal facts/missing fields, edit/reload, generate/download, edit invalidation and regenerate; no browser errors/auth storage. Reproducible external-QA harness: scripts/smoke_drafting.mjs.
+- PASS: migration 0005 down to 0004/up on disposable Postgres; encrypted drafts added through Alembic.
+- Corrected a duplicate placeholder GROQ_API_KEY in private local .env that had overridden the verified key in Docker.
+- Remaining core gap: verified legal RAG/citations and source-backed answer evaluation; uploads remain disabled.
+- Run ./scripts/dev.sh on the updated branch to apply migration/import/build on another machine. No remote CI or AWS verification is claimed.
 - AWS instance environment is not changed by local code/config updates; it needs the updated branch and its own private Groq settings.
 
 ## Product-readiness audit — 2026-11-09

@@ -8,6 +8,7 @@ import Composer from "./Composer.jsx";
 import Panel from "./DocPanel.jsx";
 import Modal from "./Modal.jsx";
 const emptyChat = { id: null, title: "New chat", msgs: [], doc: null };
+const asDraft = (d) => ({ ...d, vals: d.values, tab: d.id ? "preview" : "fields", done: !!d.id, closed: false, touched: {} });
 const fromConversation = (c) => ({ ...c, title: c.title || "New chat", msgs: (c.messages || []).map((m) => ({ id: m.id, r: m.document_id ? "f" : m.role === "user" ? "u" : "a", t: m.content, document_id: m.document_id })), doc: null });
 
 function Shell({ user, dark, setDark, onLogout }) {
@@ -24,14 +25,44 @@ function Shell({ user, dark, setDark, onLogout }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
   const taRef = useRef(null);
+  const draftCache = useRef(new Map());
+  const draftQueue = useRef(new Map());
+  const selectedChat = useRef(null);
+  const latestState = useRef(null);
 
   const chat = chats.find((c) => c.id === cur) || emptyChat;
   const tplView = mode === "drafting" && chat.msgs.length === 0;
   const doc = chat.doc && !chat.doc.closed ? chat.doc : null;
 
+  latestState.current = { id: cur, doc };
+
   const say = (t) => { setToast(t); setTimeout(() => setToast(""), 2300); };
   const upd = (id, fn) => setChats((cs) => cs.map((c) => (c.id === id ? fn(c) : c)));
-  const setDoc = (d) => upd(cur, (c) => ({ ...c, doc: d }));
+  const setDoc = (d) => upd(cur, (c) => {
+    const changed = JSON.stringify(d.vals) !== JSON.stringify(c.doc?.vals);
+    return { ...c, doc: changed ? { ...d, id: null, done: false, readOnly: false } : d };
+  });
+  const persistDraft = (id, snapshot) => {
+    const task = (draftQueue.current.get(id) || Promise.resolve()).catch(() => {}).then(async () => {
+      const previous = draftCache.current.get(id);
+      if (previous?.slug === snapshot.slug && previous.version === snapshot.version && JSON.stringify(previous.values) === JSON.stringify(snapshot.vals)) return previous;
+      const saved = await http(`/v1/conversations/${id}/draft`, { method: "PATCH", body: {
+        slug: snapshot.slug, version: snapshot.version, values: snapshot.vals, revision: previous?.revision || 0,
+      } });
+      draftCache.current.set(id, saved);
+      upd(id, (c) => c.doc?.slug === saved.slug && c.doc.version === saved.version ? { ...c, doc: {
+        ...c.doc, revision: saved.revision,
+        ...(JSON.stringify(c.doc.vals) === JSON.stringify(snapshot.vals) ? { id: saved.id, done: !!saved.id, html: saved.html } : {}),
+      } } : c);
+      return saved;
+    });
+    draftQueue.current.set(id, task);
+    return task;
+  };
+  const flushDraft = async () => {
+    const current = latestState.current;
+    if (current?.id && current.doc && !current.doc.readOnly) await persistDraft(current.id, current.doc);
+  };
   const mic = useMic((t) => setInput((v) => (v ? v + " " : "") + t), say);
 
   useEffect(() => { scrollRef.current && (scrollRef.current.scrollTop = 1e9); }, [chat.msgs.length, busy, cur, mode]);
@@ -48,17 +79,26 @@ function Shell({ user, dark, setDark, onLogout }) {
 
   const loadChat = async (id) => {
     const c = fromConversation(await http(`/v1/conversations/${id}`));
-    const lastFile = [...c.msgs].reverse().find((m) => m.document_id);
-    if (lastFile) {
-      const d = await http(`/v1/documents/${lastFile.document_id}`);
-      c.doc = { ...d, vals: d.values, tab: "preview", done: true, closed: false, touched: {} };
+    const draft = await http(`/v1/conversations/${id}/draft`);
+    if (draft) {
+      draftCache.current.set(id, draft);
+      c.doc = asDraft(draft);
+      const notice = `I found the ${draft.name} template. The form on the right has an example in each field. Replace the examples with your own details, then press Generate.`;
+      c.msgs = c.msgs.map((m) => m.r === "a" && m.t === notice ? { ...m, r: "t" } : m);
+    } else {
+      const lastFile = [...c.msgs].reverse().find((m) => m.document_id);
+      if (lastFile) {
+        const d = await http(`/v1/documents/${lastFile.document_id}`);
+        c.doc = { ...asDraft(d), readOnly: true };
+      }
     }
     setChats((cs) => cs.some((old) => old.id === c.id) ? cs.map((old) => old.id === c.id ? c : old) : [c, ...cs.filter((old) => old.id)]);
-    selectCur(c.id);
-    setMode(c.mode);
+    if (selectedChat.current === c.id) { selectCur(c.id); setMode(c.mode); }
     return c;
   };
-  const setCur = (id) => { loadChat(id).catch((e) => say(e.message)); };
+  const setCur = (id) => {
+    (async () => { await flushDraft(); selectedChat.current = id; await loadChat(id); })().catch((e) => say(e.message));
+  };
   useEffect(() => {
     let live = true;
     (async () => {
@@ -69,34 +109,44 @@ function Shell({ user, dark, setDark, onLogout }) {
       } while (cursor);
       if (!live || !items.length) return;
       setChats(items.map(fromConversation));
-      await loadChat(items[0].id);
+      if (selectedChat.current === null) { selectedChat.current = items[0].id; await loadChat(items[0].id); }
     })().catch((e) => say(e.message));
     return () => { live = false; };
   }, []);
-  const newChat = async () => {
+  const newChat = async (requested = mode) => {
     try {
-      const c = fromConversation(await http("/v1/conversations", { body: { mode } }));
+      await flushDraft();
+      const nextMode = typeof requested === "string" ? requested : mode;
+      const c = fromConversation(await http("/v1/conversations", { body: { mode: nextMode } }));
       setChats((cs) => [c, ...cs.filter((old) => old.id)]);
+      selectedChat.current = c.id;
       selectCur(c.id);
+      setMode(nextMode);
       setOpen(false);
       return c.id;
     } catch (e) { say(e.message); return null; }
   };
   const draftValues = doc ? JSON.stringify(doc.vals) : "";
   useEffect(() => {
-    if (!doc) return;
-    const id = cur, slug = doc.slug, values = doc.vals;
-    let live = true;
-    const timer = setTimeout(() => {
-      http(`/v1/templates/${slug}/render`, { body: { values, format: "html" } })
-        .then(({ html }) => { if (live) upd(id, (c) => c.doc?.slug === slug ? { ...c, doc: { ...c.doc, html } } : c); })
-        .catch((e) => { if (live) say(e.message); });
-    }, 250);
-    return () => { live = false; clearTimeout(timer); };
-  }, [cur, doc?.slug, draftValues]);
+    if (!doc || doc.readOnly || !cur || busy) return;
+    const timer = setTimeout(() => { persistDraft(cur, doc).catch((e) => say(e.message)); }, 350);
+    return () => clearTimeout(timer);
+  }, [cur, doc?.slug, doc?.version, draftValues, busy]);
+  useEffect(() => {
+    const protect = (e) => {
+      const current = latestState.current;
+      if (!current?.doc || current.doc.readOnly) return;
+      const saved = draftCache.current.get(current.id);
+      if (saved?.slug !== current.doc.slug || saved.version !== current.doc.version || JSON.stringify(saved.values) !== JSON.stringify(current.doc.vals)) {
+        e.preventDefault(); e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, []);
   const pickMode = (m) => {
-    setMode(m);
-    if (m === "drafting" && chat.msgs.length) newChat();
+    if (m === "drafting" && chat.msgs.length) newChat(m);
+    else setMode(m);
   };
   const showSub = () => setModal({ title: "Civis Pro", body: <p>Longer documents, contract review and priority answers for people who use Civis every day.</p>, actions: [{ label: "Not now" }, { label: "Upgrade", pri: true, fn: () => say("Payments are not connected yet") }] });
 
@@ -108,6 +158,17 @@ function Shell({ user, dark, setDark, onLogout }) {
     setInput("");
     const id = cur || await newChat();
     if (!id) { setBusy(false); return; }
+    if (mode === "drafting" && !chat.doc) {
+      try {
+        const result = await http("/v1/drafting/prefill", { body: { description: t, conversation_id: id } });
+        setLeft(result.prompts_left);
+        await loadChat(id);
+      } catch (e) {
+        setInput(t);
+        if (e.code === "quota_exhausted") showSub(); else say(e.message);
+      } finally { setBusy(false); }
+      return;
+    }
     upd(id, (c) => ({ ...c, title: c.msgs.length ? c.title : t.length > 34 ? t.slice(0, 34) + "\u2026" : t, msgs: [...c.msgs, { r: "u", t }, { r: "a", t: "", streaming: true }] }));
     try {
       await askCivis({ id, mode, content: t, onEvent: (event, data) => {
@@ -115,9 +176,11 @@ function Shell({ user, dark, setDark, onLogout }) {
         if (event === "delta") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, t: m.t + data.text } : m) }));
       } });
     } catch (e) {
+      setInput(t);
       if (e.code === "quota_exhausted") showSub(); else say(e.message);
     } finally {
       try {
+        await flushDraft();
         await loadChat(id);
         setLeft((await http("/v1/me")).prompts_left);
       } catch (e) { say(e.message); }
@@ -131,14 +194,10 @@ function Shell({ user, dark, setDark, onLogout }) {
     try {
       const template = await http(`/v1/templates/${slug}`);
       const vals = Object.fromEntries(template.fields.map((f) => [f.key, f.example]));
-      const preview = await http(`/v1/templates/${slug}/render`, { body: { values: vals, format: "html" } });
-      const id = cur || await newChat();
+      const id = cur || await newChat("drafting");
       if (!id) return;
-      await http(`/v1/conversations/${id}`, { method: "PATCH", body: { title: n } });
-      upd(id, (c) => ({ ...c, title: n,
-        doc: { name: n, slug, fields: template.fields, vals, html: preview.html, tab: "fields", done: false, closed: false, touched: {} },
-        msgs: [...c.msgs, { r: "u", t: "Draft a " + n }, { r: "t", t: `I found the ${n} template. The form on the right has an example in each field. Replace the examples with your own details, then press Generate.` }],
-      }));
+      await persistDraft(id, { slug, version: template.version, vals });
+      await loadChat(id);
     } catch (e) { say(e.message); } finally { setBusy(false); }
   };
   const generate = async () => {
@@ -146,15 +205,18 @@ function Shell({ user, dark, setDark, onLogout }) {
     setBusy(true);
     const id = cur;
     try {
-      await http(`/v1/templates/${doc.slug}/render`, { body: { values: doc.vals, format: "docx", conversation_id: id } });
+      const saved = await persistDraft(id, doc);
+      await http(`/v1/templates/${doc.slug}/render`, { body: { values: saved.values, format: "docx", conversation_id: id, version: saved.version, draft_revision: saved.revision } });
+      await flushDraft();
       await loadChat(id);
     } catch (e) { say(e.message); } finally { setBusy(false); }
   };
   const openDoc = async (tab, identifier) => {
     try {
       if (identifier) {
+        await flushDraft();
         const d = await http(`/v1/documents/${identifier}`);
-        setDoc({ ...d, vals: d.values, tab, done: true, closed: false, touched: {} });
+        upd(cur, (c) => ({ ...c, doc: { ...asDraft(d), tab, readOnly: true } }));
       } else upd(cur, (c) => ({ ...c, doc: { ...c.doc, closed: false, tab } }));
     } catch (e) { say(e.message); }
   };

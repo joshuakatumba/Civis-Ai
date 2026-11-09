@@ -1,5 +1,14 @@
 # Data model
 
+## Unfinished drafts (migration 0005)
+
+`conversation_drafts` has one owner-scoped row per conversation: template_version_id,
+AES-GCM encrypted_values, positive revision, nullable document_id and updated_at.
+Foreign keys reference conversations, users, template_versions and documents; an owner index supports isolation.
+Saves lock the owned conversation and compare the expected revision. Changed values/version increment the
+revision and clear document_id. Generation locks and checks the saved revision and values before attaching
+the immutable document. No auth tables or quota balances are modified by autosave.
+
 ## Implemented integration subset (migration 0004)
 
 The table below describes the broader intended model. Current additions are deliberately smaller:

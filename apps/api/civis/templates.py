@@ -45,6 +45,8 @@ class RenderRequest(StrictModel):
     values: dict[str, str] = Field(max_length=50)
     format: Literal["html", "docx"]
     conversation_id: Annotated[UUID, Field(strict=False)] | None = None
+    version: int | None = Field(default=None, ge=1)
+    draft_revision: int | None = Field(default=None, ge=1)
 
 
 class Ticket(StrictModel):
@@ -73,6 +75,7 @@ class TemplatePage(BaseModel):
 
 
 class DocumentResult(BaseModel):
+    version: int
     id: UUID
     name: str
     slug: str
@@ -262,17 +265,22 @@ def install_templates(
         WHERE id=:owner AND deleted_at IS NULL)"""
     )
 
-    async def template_for(slug: str, owner: UUID) -> dict[str, Any]:
-        async with engine.connect() as connection:
-            row = (
-                (
-                    await connection.execute(
-                        text(catalog + " AND t.slug=:slug"), {"owner": owner, "slug": slug}
-                    )
-                )
-                .mappings()
-                .one_or_none()
+    async def template_for(slug: str, owner: UUID, version: int | None = None) -> dict[str, Any]:
+        query = catalog + " AND t.slug=:slug"
+        params: dict[str, Any] = {"owner": owner, "slug": slug}
+        if version is not None:
+            query = (
+                """SELECT t.slug,t.title,t.category,v.id AS version_id,v.version,
+                v.fields,v.body,v.status,v.is_fake FROM templates t
+                JOIN template_versions v ON v.template_id=t.id
+                WHERE t.slug=:slug AND v.version=:version AND """
+                + visible
+                + """
+                AND EXISTS (SELECT 1 FROM users WHERE id=:owner AND deleted_at IS NULL)"""
             )
+            params["version"] = version
+        async with engine.connect() as connection:
+            row = (await connection.execute(text(query), params)).mappings().one_or_none()
         if row is None:
             raise HTTPException(404, "not_found")
         return dict(row)
@@ -351,7 +359,7 @@ def install_templates(
 
     @app.post("/v1/templates/{slug}/render")
     async def render(slug: str, body: RenderRequest, current: Current) -> dict[str, Any]:
-        template = await template_for(slug, current.id)
+        template = await template_for(slug, current.id, body.version)
         parts = render_parts(template, body.values)
         preview = render_html(template["title"], parts)
         async with engine.connect() as connection:
@@ -387,6 +395,35 @@ def install_templates(
                         "filename": filename,
                     },
                 )
+                if body.conversation_id and body.draft_revision is not None:
+                    snapshot = await connection.scalar(
+                        text("""SELECT encrypted_values FROM conversation_drafts
+                        WHERE conversation_id=:cid AND user_id=:owner
+                        AND template_version_id=:version AND revision=:revision FOR UPDATE"""),
+                        {
+                            "cid": body.conversation_id,
+                            "owner": current.id,
+                            "version": template["version_id"],
+                            "revision": body.draft_revision,
+                        },
+                    )
+                    if snapshot is None or decrypt(settings, snapshot) != body.values:
+                        raise HTTPException(409, "conflict")
+                    updated = await connection.execute(
+                        text("""UPDATE conversation_drafts
+                        SET document_id=:document WHERE conversation_id=:cid AND user_id=:owner
+                        AND template_version_id=:version AND revision=:revision
+                        RETURNING revision"""),
+                        {
+                            "document": identifier,
+                            "cid": body.conversation_id,
+                            "owner": current.id,
+                            "version": template["version_id"],
+                            "revision": body.draft_revision,
+                        },
+                    )
+                    if updated.scalar_one_or_none() is None:
+                        raise HTTPException(409, "conflict")
                 if body.conversation_id:
                     await connection.execute(
                         text("""INSERT INTO messages
@@ -422,6 +459,7 @@ def install_templates(
             "id": str(identifier),
             "name": template["title"],
             "slug": slug,
+            "version": template["version"],
             "filename": filename,
             "html": preview,
             "fields": template["fields"],
@@ -433,7 +471,7 @@ def install_templates(
             row = (
                 (
                     await connection.execute(
-                        text("""SELECT d.*,t.title,t.slug,v.fields,v.body FROM documents d
+                        text("""SELECT d.*,t.title,t.slug,v.fields,v.body,v.version FROM documents d
                 JOIN template_versions v ON v.id=d.template_version_id
                 JOIN templates t ON t.id=v.template_id
                 WHERE d.id=:id AND d.user_id=:owner"""),
@@ -452,6 +490,7 @@ def install_templates(
         row = await document_for(identifier, current.id)
         values = decrypt(settings, row["encrypted_values"])
         return DocumentResult(
+            version=row["version"],
             id=row["id"],
             name=row["title"],
             slug=row["slug"],
@@ -481,6 +520,10 @@ def install_templates(
                 {"id": uuid4(), "owner": current.id, **body.model_dump()},
             )
         return Response(status_code=204)
+
+    from civis.drafting import install_drafting
+
+    install_drafting(app, engine, settings, current_dependency, template_for)
 
 
 class OwnerTemplate(StrictModel):

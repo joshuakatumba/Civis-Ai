@@ -18,8 +18,11 @@ Only health/readiness and provider auth are public; legal and `/openapi.json` no
 | Category counts | GET `/v1/templates/categories` → `{items:[{name,count}],total}` |
 | Search/page | GET `/v1/templates?q=&category=&limit=9&cursor=0` → `{items,total,next_cursor}`; numeric offset cursor |
 | Field schema | GET `/v1/templates/{slug}` → title, category, slug, version, status, is_fake, fields |
+| Template prefill | POST `/v1/drafting/prefill` `{description,conversation_id?}` → `{slug,values,missing_fields,confidence,prompts_left,draft}`; one prompt, failures refunded |
+| Restore form | GET `/v1/conversations/{id}/draft` → draft snapshot or JSON null; owner only |
+| Autosave form | PATCH same route `{slug,version,values,revision}` → updated snapshot; revision 0 creates, stale revision returns 409 |
 | Preview | POST `/v1/templates/{slug}/render` `{values,format:"html"}` → `{html}`; escaped values in `.v` spans |
-| Generate | Same route, `format:"docx"`, optional conversation_id → document metadata; JSON UUID conversation references accepted |
+| Generate | Same route, `format:"docx"`, optional conversation_id/version/draft_revision → document metadata; draft link requires matching version, revision and values |
 | Restore document | GET `/v1/documents/{id}` → `{id,name,slug,fields,values,filename,html}`; owner only |
 | Download | GET `/v1/documents/{id}/download` → 307, five-minute signed private URL; owner only |
 | Feedback | POST `/v1/feedback` `{category,message,conversation_id?}` → 204; stored, owner checked |
@@ -27,6 +30,13 @@ Only health/readiness and provider auth are public; legal and `/openapi.json` no
 
 Field definitions use `{key,label,example,max_length}`. Development draft catalog serving requires
 ALLOW_UNAPPROVED_TEMPLATES; fake records never become approved. Generation, download and downstream API smoke assertions pass locally; see STATUS.md. No new screens are implied by existing backend routes.
+
+Prefill considers only approved non-FAKE templates. Extracted values must be literal substrings of the
+description or the last eight user messages in that owned conversation (prior facts capped at 6000 characters).
+Missing facts remain null/blank. Low confidence returns slug null. Threshold is set by
+DRAFTING_CONFIDENCE_THRESHOLD. Prefill shares chat's hourly/concurrent limits and atomic quota ledger.
+Draft reads/writes also use the existing authenticated request rate limit. Editing a generated draft clears
+its active download reference; prior generated documents remain immutable and available in chat history.
 
 ## Error codes
 unauthenticated (401), email_unverified (403), forbidden (403), not_found (404), validation_failed (422), quota_exhausted (402), rate_limited (429, with retry-after), model_unavailable (503), content_blocked (422), conflict (409), internal (500).

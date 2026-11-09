@@ -2,7 +2,7 @@
 
 - Active React/backend integration passes local API and browser acceptance; remote CI and production remain unverified.
 - Local fake-data flows are verified; they do not establish legal accuracy or production readiness.
-- Local development uses labelled fake model/template/legal data; approved production content is absent.
+- Groq and the 62 owner-approved testing templates are configured locally; legal source records remain FAKE and verified production legal content is absent.
 - Production deployment, payments, legal approvals, corpus/evals and external telemetry remain unverified.
 - Uploads stay disabled; exactly-15-page quota policy remains unresolved before uploads are enabled.
 - Existing provider dependencies emit non-failing datetime/Redis-close deprecation warnings.
@@ -33,6 +33,7 @@
 - Live Groq streaming and per-conversation recall now pass; credentials/models are environment-only.
 - The owner approved 62 original templates for testing; original wording is imported unchanged.
 - Preview/Word equivalence passes for all 62; approved-version selection no longer hides an approved version behind a draft.
-- Unfinished form edits still do not persist; generated document snapshots and chat messages do.
-- Temporary browser QA files were absent, so this turn verified real HTTP flows rather than claiming a new browser pass.
-- Legal RAG/citations and natural-language template prefill remain missing; no source-verified legal-answer claim is made.
+- Unfinished forms now autosave encrypted, version-pinned snapshots; expected revision conflicts protect newer edits. Pending edits need a completed save before closing (browser warning provided).
+- Browser live Groq prefill/autosave/reload/generate/download/regenerate now pass without JavaScript errors; external harness is committed in scripts/smoke_drafting.mjs.
+- Legal RAG/citations remain missing; natural-language approved-template prefill is implemented. No source-verified legal-answer claim is made.
+- Removed a duplicate placeholder key from private local .env after it caused Docker-only Groq 401 responses. Other machines must keep a single valid GROQ_API_KEY entry.

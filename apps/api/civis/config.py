@@ -38,6 +38,7 @@ class Settings(BaseModel):
     groq_api_key: SecretStr | None = None
     groq_base_url: str = "https://api.groq.com/openai/v1"
     owner_templates_file: str | None = None
+    drafting_confidence_threshold: float = Field(default=0.6, ge=0, le=1)
     llm_history_max_chars: int = Field(default=24000, ge=8000, le=200000)
     anthropic_api_key: SecretStr | None = None
     anthropic_base_url: str = "https://api.anthropic.com"
@@ -89,6 +90,7 @@ class Settings(BaseModel):
         data["groq_api_key"] = env.get("GROQ_API_KEY")
         data["groq_base_url"] = env.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
         data["owner_templates_file"] = env.get("OWNER_TEMPLATES_FILE")
+        data["drafting_confidence_threshold"] = env.get("DRAFTING_CONFIDENCE_THRESHOLD", "0.6")
         data["llm_history_max_chars"] = env.get("LLM_HISTORY_MAX_CHARS", "24000")
         data["anthropic_api_key"] = env.get("ANTHROPIC_API_KEY")
         data["anthropic_base_url"] = env.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")

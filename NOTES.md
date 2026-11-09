@@ -40,3 +40,7 @@ Six targeted tests passed, including live Groq recall, chat isolation, quota/API
 Live HTTP app flow passed through the web proxy; lint/typecheck and API/web/worker builds pass.
 Temporary browser tooling was absent; no new browser pass or remote CI result is claimed.
 No frontend redesign, CSS change, new dependency or new migration; RAG/prefill/form autosave remain separate work.
+
+Drafting verification found a duplicate placeholder GROQ_API_KEY overriding the working key in Docker; removed privately without changing or exposing the key.
+Unsaved render values could otherwise link the wrong file to a saved draft; generation now requires matching revision, template version and values.
+External Playwright QA remains outside app dependencies; scripts/smoke_drafting.mjs replaces the temporary-only harness.

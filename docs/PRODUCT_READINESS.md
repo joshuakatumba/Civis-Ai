@@ -3,9 +3,9 @@
 Audited 2026-11-09 against current code, STATUS.md, KNOWN_ISSUES.md and the product specifications.
 Scope: all documented product capabilities and reliability work. AWS deployment, VM sizing,
 DNS/TLS setup, server provisioning and infrastructure operations are intentionally excluded.
-This is a planning audit: no product code was changed and no new test run was performed.
+The original audit was read-only; the testing-slice updates below record subsequent implementation and local checks.
 
-There are **188 open acceptance tasks** in this register. An open task may complete or verify
+There are **188 acceptance tasks** in this register: 8 completed for the local testing scope, 180 open. An open task may complete or verify
 an existing foundation; it does not mean the entire subsystem is absent. Counts are not an
 estimate of effort or a percentage-complete score. [OWNER] means an owner/advocate/provider input
 is required; the agent must not fabricate legal content, access rights or acceptance thresholds.
@@ -24,14 +24,15 @@ retrieval would require an explicit update to the existing local-index specifica
 On 2026-11-09 the owner approved the original templates for testing and authorised Groq.
 Real Groq streaming/recall, 62 unchanged template imports and bounded conversation context now pass
 local checks. Approved-version selection was corrected. See CORE_TESTING.md and STATUS.md.
-The register below retains broader release tasks; these local test results do not close source-verified RAG,
-prefill, privacy/customer lifecycle, deployment or complete release acceptance.
+Approved-template prefill and encrypted unfinished-form autosave now pass local API/live Groq/browser checks.
+Version pinning and stale generated-file links are fixed. Eight implemented tasks are checked below;
+these local results do not close source-verified RAG, privacy/customer lifecycle or complete release acceptance.
 
 ## Code evidence and concrete gaps
 
 - `apps/api/civis/chat.py`: calls the provider without retrieval and emits an empty citations list.
-- `apps/api/civis/templates.py`: now imports the 62 owner-approved testing templates; approved-version selection is corrected. Rendering still uses a slug without a pinned version in the request.
-- `apps/web/src/components/Shell.jsx` and `DocPanel.jsx`: template selection/ungenerated fields are local state; editing a generated document retains its prior file ID/done state; asynchronous chat/mode state needs concurrency tests/fixes.
+- `apps/api/civis/templates.py`: now imports the 62 owner-approved testing templates; approved-version selection is corrected. The UI pins the selected version through draft saves and generation.
+- `apps/web/src/components/Shell.jsx`: server-backed draft autosave/reload and edit invalidation now pass; broad multi-tab/concurrency acceptance remains open.
 - `apps/api/civis/templates.py` field validation currently checks field keys and length; typed/required/cross-field rules are not implemented.
 - `apps/worker/civis_worker.py`: only health_job exists; no ingestion, extraction, purge, export, reconciliation or support-delivery jobs.
 - `.github/workflows/m1.yml` still invokes frontend scripts absent from `apps/web/package.json`.
@@ -144,28 +145,28 @@ Current state: Versioned prompts exist; full behavior is not implemented or eval
 
 Current state: Catalog and fake seed exist; approved-content lifecycle is missing.
 
-- [ ] TPL-01 Build an owner-run import command for supplied real template definitions; an admin upload UI is optional, not required to import.
+- [x] TPL-01 Build an owner-run import command for supplied real template definitions; an admin upload UI is optional, not required to import.
 - [ ] TPL-02 Define supported source formats and editable-field mapping; preserve supplied wording and identify unsupported formatting.
 - [ ] TPL-03 Expand field schemas to required/optional values, supported types, limits and cross-field rules.
 - [ ] TPL-04 Validate imported bodies, placeholders, schema consistency and provenance before acceptance.
 - [ ] TPL-05 Implement draft, review, approval, active-version selection, retirement and rollback with authorized reviewer records.
-- [ ] TPL-06 Fix approved-version selection so a newer draft does not hide the last approved version.
-- [ ] TPL-07 Pin the selected version from form loading through preview, prefill, generation and document reopening.
+- [x] TPL-06 Fix approved-version selection so a newer draft does not hide the last approved version.
+- [x] TPL-07 Pin the selected version from form loading through preview, prefill, generation and document reopening.
 - [ ] TPL-08 Populate and advocate-review real templates/categories; never let Codex author or approve legal wording.
 - [ ] TPL-09 Prevent examples from silently becoming user facts or final documents; explicitly handle unfilled required fields.
 - [ ] TPL-10 Verify catalog search/category/count/pagination behavior on the real catalog, including the documented title/category search semantics.
 
 ## PRE — AI drafting selection and prefill
 
-Current state: Missing endpoint and frontend integration.
+Current state: Approved-template selection, literal fact extraction, quota/refunds and frontend autosave are implemented and locally tested. Typed/cross-field validation and broader hostile-input evaluation remain open.
 
-- [ ] PRE-01 Implement POST /v1/drafting/prefill with validated request/response schemas.
-- [ ] PRE-02 Retrieve suitable approved template candidates from the real catalog.
-- [ ] PRE-03 Use structured extraction to map only stated user facts to allowed fields.
-- [ ] PRE-04 Return unknown values as null/placeholders; reject invented/unknown fields.
+- [x] PRE-01 Implement POST /v1/drafting/prefill with validated request/response schemas.
+- [x] PRE-02 Retrieve suitable approved template candidates from the real catalog.
+- [x] PRE-03 Use structured extraction to map only stated user facts to allowed fields.
+- [x] PRE-04 Return unknown values as null/placeholders; reject invented/unknown fields.
 - [ ] PRE-05 Return missing-field information and request a user choice when selection confidence is insufficient.
 - [ ] PRE-06 Validate dates, amounts, names and supported cross-field consistency rules.
-- [ ] PRE-07 Connect describe-the-document chat to selection/prefill and editable confirmation without unauthorized wording changes.
+- [x] PRE-07 Connect describe-the-document chat to selection/prefill and editable confirmation without unauthorized wording changes.
 - [ ] PRE-08 Apply atomic quota/idempotency and test ambiguity, hallucination, failure/refund and hostile input behavior.
 
 ## DOC — Preview, generation and document lifecycle
