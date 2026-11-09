@@ -1,3 +1,5 @@
+> Historical broad audit. Current core implementation and acceptance are tracked in CORE_EXECUTION.md and STATUS.md; statements below about absent retrieval/evaluation/CI predate those implementations. Unchecked items are not automatically accepted.
+
 # Civis complete product-readiness task register
 
 Audited 2026-11-09 against current code, STATUS.md, KNOWN_ISSUES.md and the product specifications.

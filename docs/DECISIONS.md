@@ -44,3 +44,13 @@ Owner confirms supplied templates/content are legitimate and ready for building,
 diagnostic labels appearing in the product. The 62 owner-approved templates remain unchanged.
 Normal startup uses real providers and approved content only. Synthetic fixtures remain confined
 to explicit isolated test mode; no sample response is relabelled as a real answer.
+
+
+## Core continuation and development-only direction — 2026-11-09
+
+Owner requested the 30 ordered core tasks, then explicitly stopped deployment and Docker Compose
+work in favour of code development. No server mutation was performed. The owner has no additional
+approved routing wording, contacts or advocate dataset; these remain missing inputs, not fabricated
+acceptance. Existing technical availability wording is retained. Whole-answer withholding remains fixed.
+Model/key/reasoning configuration stays in environment settings; the local controlled testing model
+is now 120B. Limited successful checks do not establish independent legal accuracy or release approval.

@@ -64,6 +64,7 @@ class Profile(BaseModel):
     prompts_left: int
     preferences: Preferences
     verified: bool
+    verification_required: bool = False
     free_allowance: int
 
 
@@ -276,6 +277,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if verified or not settings.require_email_verification
             else 0,
             verified=verified,
+            verification_required=settings.require_email_verification,
             free_allowance=settings.free_prompts,
         )
 

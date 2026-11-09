@@ -77,3 +77,8 @@ Normal startup now uses real services with explicit preflight, no sample seeding
 Live history excludes diagnostic assistant records without deleting user data; live catalog preserves all 62 approved owner templates and isolates fixtures.
 Added masked private live-configuration helper that preserves database credentials; no server access or deployment completion is claimed.
 Fifteen relevant tests and API/worker build/static/readiness checks pass; Research legal-answer acceptance remains separately unresolved.
+
+2026-11-09: Hosted retrieval needs focused keyword preparation; copied quote generation was replaced with source passage IDs while preserving whole-answer verification.
+2026-11-09: Approved-template-first imports exposed a fixture slug/foreign-key collision; fixture seeding now skips owner-first slugs.
+2026-11-09: Existing suite implicitly ran paid live checks when private keys existed; these now require explicit opt-in.
+2026-11-09: Browser QA assumed an absent Tenancy template and a unique Download button; harness corrected to supplied Lease Agreement and panel scope, final run deferred.

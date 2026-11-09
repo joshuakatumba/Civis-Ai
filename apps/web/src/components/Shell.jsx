@@ -22,6 +22,8 @@ function Shell({ user, dark, setDark, onLogout }) {
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
+  const sending = useRef(false);
+  const request = useRef(null);
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
   const taRef = useRef(null);
@@ -29,6 +31,7 @@ function Shell({ user, dark, setDark, onLogout }) {
   const draftQueue = useRef(new Map());
   const selectedChat = useRef(null);
   const latestState = useRef(null);
+  useEffect(() => () => { request.current?.abort(); }, []);
 
   const chat = chats.find((c) => c.id === cur) || emptyChat;
   const tplView = mode === "drafting" && chat.msgs.length === 0;
@@ -152,39 +155,45 @@ function Shell({ user, dark, setDark, onLogout }) {
 
   const send = async () => {
     const t = input.trim();
-    if (!t || busy) return;
+    if (!t || busy || sending.current) return;
     if (left <= 0) return showSub();
+    sending.current = true;
+    request.current = new AbortController();
     setBusy(true);
     setInput("");
     const id = cur || await newChat();
-    if (!id) { setBusy(false); return; }
+    if (!id) { sending.current = false; setBusy(false); return; }
     if (mode === "drafting" && !chat.doc) {
       try {
-        const result = await http("/v1/drafting/prefill", { body: { description: t, conversation_id: id } });
+        const result = await http("/v1/drafting/prefill", { body: { description: t, conversation_id: id }, signal: request.current.signal });
         setLeft(result.prompts_left);
         await loadChat(id);
       } catch (e) {
+        if (request.current?.signal.aborted) return;
         setInput(t);
         if (e.code === "quota_exhausted") showSub(); else say(e.message);
-      } finally { setBusy(false); }
+      } finally { sending.current = false; setBusy(false); }
       return;
     }
     upd(id, (c) => ({ ...c, title: c.msgs.length ? c.title : t.length > 34 ? t.slice(0, 34) + "\u2026" : t, msgs: [...c.msgs, { r: "u", t }, { r: "a", t: "", streaming: true }] }));
     try {
-      await askCivis({ id, mode, content: t, onEvent: (event, data) => {
+      await askCivis({ id, mode, content: t, signal: request.current.signal, onEvent: (event, data) => {
         if (event === "meta") setLeft(data.prompts_left); // SEAM: the server must own this count
         if (event === "citations") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, citations: data } : m) }));
         if (event === "delta") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, t: m.t + data.text } : m) }));
       } });
     } catch (e) {
+      if (request.current?.signal.aborted) return;
       setInput(t);
       if (e.code === "quota_exhausted") showSub(); else say(e.message);
     } finally {
+      if (request.current?.signal.aborted) { sending.current = false; return; }
       try {
         await flushDraft();
         await loadChat(id);
         setLeft((await http("/v1/me")).prompts_left);
       } catch (e) { say(e.message); }
+      sending.current = false;
       setBusy(false);
     }
   };

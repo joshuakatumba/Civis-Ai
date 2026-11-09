@@ -1,5 +1,24 @@
 # Civis status
 
+## Core implementation continuation — 2026-11-09
+
+Latest owner direction: **code first; stop Docker Compose runs and deployment**. No server changes made.
+The ordered task register and exact remaining acceptance gaps are in [docs/CORE_EXECUTION.md](docs/CORE_EXECUTION.md).
+
+- Added strict Groq structured generation, focused search query preparation, original passage references, whole-answer verification and safe failure-stage/HTTP diagnostics. Drafting chat follow-ups now use the same grounding path.
+- Direct live dismissal check passed with two citations (20B); direct live car-import check passed with two citations (120B). Private local model now selects 120B/low reasoning and 2048 completion tokens. No model/key is hard-coded in application logic.
+- Research browser acceptance remains open: one attempt failed upstream during verification. Earlier direct checks also withheld answers; no broad legal-accuracy claim is made.
+- Added account recovery/verification screens, provider callback routing, single-use reset checks, token/referrer protection, duplicate-submit guards and request cancellation on leaving the app. Existing JSX design/CSS/template wording remain intact.
+- Retained quota, memory, encrypted autosave and private document flows. Fixed test-seed collision when approved owner templates were imported first.
+- Repaired CI commands for React/Vite; isolated test settings from private live defaults and made paid live tests explicit opt-in. Added separate generation-review scoring alongside retrieval scoring.
+- Verification: API lint/typecheck pass; migration up/down/up passed. Full run: 78 passed, 2 skipped, one optional live-prefill failure; that check is now opt-in. Focused final drafting/concurrency run: 5 passed, 1 skipped. Generation scorer: 3 passed. Latest small metadata/cancellation/recovery changes pass lint/typecheck and the Vite production build; runtime acceptance remains pending.
+- Measured fixture-provider concurrency: 16 streams across 8 real-auth accounts, 0 errors, p50 2165 ms/p95 2182 ms. This does not measure Groq peak capacity.
+- Browser reached approved-template generation; QA harness had missing-title/selector errors, now corrected but final rerun deferred. No passing complete browser or remote CI result claimed.
+- Owner has no approved routing text, verified contacts or advocate labels. Existing availability response remains; urgent/unsafe/unsupported routes withhold and refund. No legal text/contacts/gold labels invented.
+- AWS read-only check found e8bca6e and healthy live configuration. Existing remote MinIO Dockerfile edit was preserved. Deployment remains stopped.
+
+Earlier entries below are historical snapshots; this entry supersedes their current-state statements.
+
 ## User-facing test-response leak fixed — 2026-11-09
 
 - Owner reported deployed UI showing a canned diagnostic reply during a presentation. Root cause: dev_env.py still selected the test provider/seed, and provider selection silently fell back to canned replies without keys.

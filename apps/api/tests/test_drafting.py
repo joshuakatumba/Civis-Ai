@@ -168,7 +168,10 @@ async def test_prefill_ambiguity_and_quota(chat_clients):
     ).status_code == 402
 
 
-@pytest.mark.skipif(not os.getenv("GROQ_API_KEY"), reason="Live Groq key absent")
+@pytest.mark.skipif(
+    not (os.getenv("GROQ_API_KEY") and os.getenv("CIVIS_RUN_LIVE_PROVIDER_TESTS") == "1"),
+    reason="Live provider checks require explicit opt-in",
+)
 async def test_live_groq_prefill(chat_clients):
     from civis.config import Settings
     from civis.providers import GroqProvider

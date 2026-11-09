@@ -101,6 +101,12 @@ async def seed_templates(engine: AsyncEngine, settings: Settings) -> None:
                 VALUES (:id,:slug,:title,:category) ON CONFLICT (slug) DO NOTHING"""),
                 {"id": tid, "slug": item.slug, "title": item.title, "category": item.category},
             )
+            actual = await connection.scalar(
+                text("SELECT id FROM templates WHERE slug=:slug"), {"slug": item.slug}
+            )
+            if actual != tid:
+                # An owner catalog imported first owns this slug; fixtures must not replace it.
+                continue
             await connection.execute(
                 text("""INSERT INTO template_versions
                 (id,template_id,version,fields,body,is_fake,status)

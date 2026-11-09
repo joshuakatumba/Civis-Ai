@@ -37,6 +37,12 @@ class ProviderUnavailable(Exception):
     pass
 
 
+class ProviderHTTPError(ProviderUnavailable):
+    def __init__(self, status: int):
+        self.status = status if 400 <= status <= 599 else 502
+        super().__init__("provider_http_error")
+
+
 class ProviderRateLimited(ProviderUnavailable):
     def __init__(self, retry_after: int):
         self.retry_after = retry_after
@@ -132,7 +138,7 @@ class AnthropicProvider:
                 "POST", settings.anthropic_base_url + "/v1/messages", headers=headers, json=payload
             ) as response:
                 if response.status_code != 200:
-                    raise ProviderUnavailable()
+                    raise ProviderHTTPError(response.status_code)
                 async for line in response.aiter_lines():
                     if not line.startswith("data:"):
                         continue
@@ -191,6 +197,75 @@ class GroqProvider:
             raise ProviderUnavailable()
         self.settings = settings
 
+    async def structured_stream(
+        self,
+        system: str,
+        messages: list[Turn],
+        schema: type[BaseModel],
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[ModelEvent]:
+        """Buffer a schema-constrained completion; Groq does not stream strict JSON."""
+        settings = self.settings
+        assert settings.groq_api_key is not None
+        payload: dict[str, object] = {
+            "model": settings.llm_model,
+            "messages": [{"role": "system", "content": system}]
+            + [m.model_dump() for m in messages],
+            "max_completion_tokens": max_tokens or settings.llm_max_output_tokens,
+            "temperature": 0.2,
+            "stream": False,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema.__name__,
+                    "strict": True,
+                    "schema": schema.model_json_schema(),
+                },
+            },
+        }
+        if settings.groq_reasoning_effort:
+            payload["reasoning_effort"] = settings.groq_reasoning_effort
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60, connect=10)) as client:
+            async with client.stream(
+                "POST",
+                settings.groq_base_url.rstrip("/") + "/chat/completions",
+                headers={"Authorization": "Bearer " + settings.groq_api_key.get_secret_value()},
+                json=payload,
+            ) as response:
+                if response.status_code == 429:
+                    try:
+                        delay = max(
+                            1,
+                            min(3600, math.ceil(float(response.headers.get("retry-after", "60")))),
+                        )
+                    except (ValueError, OverflowError):
+                        delay = 60
+                    raise ProviderRateLimited(delay)
+                if response.status_code != 200:
+                    raise ProviderHTTPError(response.status_code)
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    body.extend(chunk)
+                    if len(body) > 2000000:
+                        raise ProviderUnavailable()
+        data = json.loads(body)
+        choices = data.get("choices", [])
+        if len(choices) != 1:
+            raise ProviderUnavailable()
+        choice = choices[0]
+        usage = GroqUsage.model_validate(data.get("usage") or {})
+        # Account for truncated completions before rejecting their content.
+        yield ModelEvent(
+            kind="usage",
+            input_tokens=usage.prompt_tokens,
+            output_tokens=usage.completion_tokens,
+            finish_reason=choice.get("finish_reason") or "unknown",
+        )
+        content = choice.get("message", {}).get("content")
+        if not isinstance(content, str):
+            raise ProviderUnavailable()
+        yield ModelEvent(kind="text", text=content)
+
     async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[ModelEvent]:
         settings = self.settings
         assert settings.groq_api_key is not None
@@ -202,6 +277,8 @@ class GroqProvider:
             "temperature": 0.2,
             "stream": True,
         }
+        if settings.groq_reasoning_effort:
+            payload["reasoning_effort"] = settings.groq_reasoning_effort
         usage = GroqUsage()
         finish = "stop"
         async with httpx.AsyncClient(timeout=httpx.Timeout(60, connect=10)) as client:
@@ -219,7 +296,7 @@ class GroqProvider:
                         delay = 60
                     raise ProviderRateLimited(delay)
                 if response.status_code != 200:
-                    raise ProviderUnavailable()
+                    raise ProviderHTTPError(response.status_code)
                 async for line in response.aiter_lines():
                     if not line.startswith("data:"):
                         continue

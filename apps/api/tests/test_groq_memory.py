@@ -35,7 +35,13 @@ async def test_chat_memory_is_persisted_and_owner_scoped(chat_clients):
     assert (await stranger.get(f"/v1/conversations/{cid}")).status_code == 404
 
 
-@pytest.mark.skipif(not __import__("os").getenv("GROQ_API_KEY"), reason="Live Groq key absent")
+@pytest.mark.skipif(
+    not (
+        __import__("os").getenv("GROQ_API_KEY")
+        and __import__("os").getenv("CIVIS_RUN_LIVE_PROVIDER_TESTS") == "1"
+    ),
+    reason="Live provider checks require explicit opt-in",
+)
 async def test_live_groq_stream_and_memory():
     from civis.config import Settings
 

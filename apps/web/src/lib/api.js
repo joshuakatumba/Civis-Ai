@@ -3,8 +3,8 @@ const IDEAS = {
   research: ["What are my rights if I am dismissed without notice?", "Explain the main clauses in an NDA", "How long do I have to file a claim for unpaid wages?", "Trademark or copyright for my brand name?"],
 };
 /* SEAM: replace with POST /v1/conversations/{id}/messages (streaming). */
-async function askCivis({ id, mode, content, onEvent }) {
-  const response = await http(`/v1/conversations/${id}/messages`, { body: { content, mode }, stream: true });
+async function askCivis({ id, mode, content, onEvent, signal }) {
+  const response = await http(`/v1/conversations/${id}/messages`, { body: { content, mode }, stream: true, signal });
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "", done = false;

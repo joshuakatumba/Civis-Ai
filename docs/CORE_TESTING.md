@@ -10,7 +10,9 @@ Edit the existing private .env; do not replace database/storage credentials. Nev
 LLM_PROVIDER=groq
 FAKE_MODEL=false
 GROQ_API_KEY=YOUR_KEY
-LLM_MODEL=openai/gpt-oss-20b
+LLM_MODEL=openai/gpt-oss-120b
+GROQ_REASONING_EFFORT=low
+LLM_MAX_OUTPUT_TOKENS=2048
 OWNER_TEMPLATES_FILE=content/owner-supplied/templates.json
 ALLOW_UNAPPROVED_TEMPLATES=false
 LLM_HISTORY_MAX_CHARS=24000
@@ -55,12 +57,13 @@ The app does not yet have cross-chat memory or document-upload analysis.
 ## Hosted Research
 
 Owner approved Laws.Africa Uganda Knowledge Bases on 2026-11-09, replacing local indexing/embeddings.
+The latest owner instruction pauses Docker Compose/deployment; the startup commands below are reference only.
 Set RETRIEVAL_PROVIDER=laws_africa and LAWS_AFRICA_API_KEY privately, then run ./scripts/dev.sh.
 Research retrieves Uganda passages, generates structured segments, checks source IDs/quotations and runs
 a separate support check before showing text. Source links/dates survive reload. Missing sources or
 failed checks return the existing availability error and refund the prompt; no ungrounded fallback is used.
 Preview coverage, independent legal accuracy, account production entitlement and dedicated safety/abstention
-wording remain open. Generic Drafting chat is not grounded by this change.
+wording remain open. Drafting chat follow-ups now use the same hosted grounding path; template selection/rendering remain separate.
 
 ## Correct real-service startup after older sample defaults
 
@@ -74,3 +77,5 @@ Normal startup does not seed sample content and fails preflight rather than serv
 ENABLE_TEST_FIXTURES is false by default and required to select test providers/catalog/legal fixtures.
 Automated isolated setup uses scripts/dev_env.py --test-fixtures. Diagnostic assistant records remain
 stored but are excluded from normal history/model context; no user messages or documents are erased.
+
+Current evidence and remaining acceptance are tracked in CORE_EXECUTION.md. Paid live provider tests require CIVIS_RUN_LIVE_PROVIDER_TESTS=1; ordinary checks never depend on private provider keys. Generation evaluations use independent review records and separate oracle/retrieved contexts.

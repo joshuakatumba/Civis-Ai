@@ -303,3 +303,112 @@ async def test_one_supported_paragraph_never_releases_a_partial_answer(chat_clie
     assert (await client.get("/v1/me")).json()["prompts_left"] == 20
     stored = (await client.get(f"/v1/conversations/{cid}")).json()["messages"][-1]
     assert stored["content"] == "" and stored["citations"] == []
+
+
+def test_excerpt_keeps_late_matches_and_original_text():
+    from civis.research import relevant_excerpt
+
+    text = "FAKE preface. " * 900 + "FAKE specific needle marker." + " FAKE tail." * 400
+    excerpt = relevant_excerpt(text, "FAKE needle marker?", 2000)
+    assert len(excerpt) == 2000
+    assert "specific needle marker" in excerpt
+    assert excerpt in text
+
+
+async def test_groq_structured_request_is_constrained_and_buffered(chat_clients, monkeypatch):
+    import httpx
+    from civis.providers import GroqProvider, Turn
+    from civis.research import Answer
+    from pydantic import SecretStr
+
+    app, _, _ = chat_clients
+    client_type = httpx.AsyncClient
+
+    def respond(request):
+        payload = json.loads(request.content)
+        assert payload["stream"] is False
+        spec = payload["response_format"]["json_schema"]
+        assert spec["strict"] is True and spec["schema"]["additionalProperties"] is False
+        assert spec["schema"]["required"] == ["segments", "abstain"]
+        assert payload["reasoning_effort"] == "low"
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {"content": '{"segments":[],"abstain":true}'},
+                    }
+                ],
+                "usage": {"prompt_tokens": 12, "completion_tokens": 8},
+            },
+        )
+
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kw: client_type(**kw, transport=httpx.MockTransport(respond))
+    )
+    provider = GroqProvider(
+        app.state.settings.model_copy(
+            update={"groq_api_key": SecretStr("FAKE-key"), "groq_reasoning_effort": "low"}
+        )
+    )
+    events = [
+        event
+        async for event in provider.structured_stream(
+            "FAKE schema test", [Turn(role="user", content="FAKE")], Answer
+        )
+    ]
+    assert events[0].kind == "usage" and events[0].input_tokens == 12
+    assert Answer.model_validate_json(events[1].text).abstain
+
+
+@pytest.mark.parametrize("route", ["research", "urgent", "unsafe", "unsupported", "bad_pointer"])
+async def test_passage_ids_and_routing_fail_closed_with_refunds(chat_clients, route):
+    from civis.research import PassageAnswer, SearchQuery
+
+    app, client, _ = chat_clients
+    app.state.retriever = FakeRetriever()
+
+    class PassageModel:
+        is_fake = True
+
+        async def structured_stream(self, system, messages, schema, max_tokens=None):
+            if schema is SearchQuery:
+                value = {
+                    "text": "FAKE marker",
+                    "route": "research" if route == "bad_pointer" else route,
+                }
+                assert max_tokens == 256
+            elif schema is PassageAnswer:
+                value = {
+                    "abstain": False,
+                    "segments": [
+                        {
+                            "text": "FAKE blue marker.",
+                            "source_ids": ["FAKE-source"],
+                            "evidence": [
+                                {
+                                    "source_id": "FAKE-source",
+                                    "passage_id": 99 if route == "bad_pointer" else 0,
+                                }
+                            ],
+                        }
+                    ],
+                }
+            else:
+                assert "FAKE blue marker." in messages[0].content
+                value = {"supported": [0]}
+            yield ModelEvent(kind="text", text=json.dumps(value))
+            yield ModelEvent(kind="usage", input_tokens=1, output_tokens=1)
+
+    app.state.model_provider = PassageModel()
+    cid = (await client.post("/v1/conversations", json={"mode": "drafting"})).json()["id"]
+    result = await client.post(
+        f"/v1/conversations/{cid}/messages", json={"content": "FAKE marker?", "mode": "drafting"}
+    )
+    if route == "research":
+        assert "event: done" in result.text and "event: citations" in result.text
+        assert (await client.get("/v1/me")).json()["prompts_left"] == 19
+    else:
+        assert "event: error" in result.text and "event: delta" not in result.text
+        assert (await client.get("/v1/me")).json()["prompts_left"] == 20

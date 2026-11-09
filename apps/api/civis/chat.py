@@ -338,11 +338,11 @@ def install_chat(
             parts: list[str] = []
             usage = ModelEvent(kind="usage")
             prompt = (Path(__file__).parent / "prompts" / f"{body.mode}-v1.txt").read_text()
-            from civis.research import GroundedProvider
+            from civis.research import GroundedProvider, ResearchFailure
 
             research = (
                 GroundedProvider(provider, app.state.retriever)
-                if body.mode == "research" and app.state.retriever is not None
+                if app.state.retriever is not None
                 else None
             )
             iterator = (
@@ -415,6 +415,16 @@ def install_chat(
                 )
             except asyncio.CancelledError:
                 raise
+            except ResearchFailure as error:
+                yield sse(
+                    "error",
+                    {
+                        "code": "model_unavailable",
+                        "message": "Response unavailable.",
+                        "stage": error.stage,
+                        "reason": error.code,
+                    },
+                )
             except ProviderRateLimited as error:
                 yield sse(
                     "error",
@@ -435,6 +445,12 @@ def install_chat(
                         with suppress(asyncio.CancelledError):
                             await pending
                     await iterator.aclose()
+                    if research:
+                        usage = ModelEvent(
+                            kind="usage",
+                            input_tokens=research.input_tokens,
+                            output_tokens=research.output_tokens,
+                        )
                     if not completed:
                         await persist("incomplete")
                     if not sent:

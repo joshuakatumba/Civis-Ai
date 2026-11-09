@@ -35,3 +35,22 @@ The metadata-only source manifest is content/corpus/laws-africa-uganda.json. Adv
 are still needed to evaluate hosted relevance; no real labels were fabricated.
 ULII access was investigated; its full terms page returned 403 to the browsing tool, so no bulk/API
 permission was assumed and no document content was fetched. Source: https://ulii.org/en/terms-of-use/
+
+Generation is evaluated separately:
+
+```sh
+.venv/bin/python -m evals.generation /private/generation-reviews.jsonl
+```
+
+`GenerationReview` in `evals/generation.py` defines the strict review record. Use `oracle`
+context for generation tested with counsel-selected evidence, and `retrieved` for the complete
+pipeline. Report these groups separately. Reviewers count supported/total claims and citations,
+record expected/cited source IDs, and grade relevance and (when a reference exists) correctness.
+Withheld answers count toward answer rate and source recall; they do not receive perfect
+faithfulness for producing no claims. Missing correctness references produce `null`, not a pass.
+FAKE records are excluded. An LLM verifier inside the product is not an independent quality score.
+
+No advocate-reviewed dataset or approved routing messages were supplied. Start with the two
+owner-reported questions and a small counsel review, recording expected sources before tuning.
+Do not invent gold labels or report unit-test arithmetic as legal performance. Provider preview
+coverage and use terms still require owner confirmation before a market-readiness claim.
