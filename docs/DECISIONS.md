@@ -23,3 +23,11 @@ Codex must not choose any of these. Defaults are proposals, not approvals.
 | D15 | Quota cost of a document question | 1 prompt under 15 pages, 2 above. Owner decides whether free users may upload at all. | Defines the ledger for uploads. |
 | D16 | Upload retention | 30 days, or earlier on deletion | Privacy. Pending D12. |
 | D17 | Sensitive document types | Warn on ID documents and bank statements, do not block | Pending counsel. |
+
+## Owner testing decisions — 2026-11-09
+
+The owner approved using Groq through environment-configured credentials/models for immediate product testing.
+The owner stated existing templates were counsel-approved for this use case; the 62 original Civis.jsx
+templates are copied unchanged into content/owner-supplied/templates.json and imported with that testing approval.
+This records the owner's instruction; it does not claim an independent legal review or verified legal RAG.
+Existing corpus/access and production release decisions remain unresolved.

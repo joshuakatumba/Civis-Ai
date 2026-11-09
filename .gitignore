@@ -14,3 +14,6 @@ playwright-report/
 .dist/
 
 apps/web/dist/
+
+*.pem
+Civis-Ai/

@@ -28,3 +28,11 @@
 - CSS and frontend dependency files remain unchanged against port input 18b6928.
 - Anonymous session probes return expected HTTP 401 before login; the browser check excludes those expected network messages.
 - Live Anthropic, microphone hardware, remote integration CI and production/external telemetry were not verified.
+
+## Core testing update — 2026-11-09
+- Live Groq streaming and per-conversation recall now pass; credentials/models are environment-only.
+- The owner approved 62 original templates for testing; original wording is imported unchanged.
+- Preview/Word equivalence passes for all 62; approved-version selection no longer hides an approved version behind a draft.
+- Unfinished form edits still do not persist; generated document snapshots and chat messages do.
+- Temporary browser QA files were absent, so this turn verified real HTTP flows rather than claiming a new browser pass.
+- Legal RAG/citations and natural-language template prefill remain missing; no source-verified legal-answer claim is made.

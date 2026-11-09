@@ -129,8 +129,11 @@ def render_parts(
     output = []
     for heading, paragraph in template["body"]:
         segments = []
-        for index, piece in enumerate(re.split(r"\{([a-z][a-z0-9_]*)\}", paragraph)):
+        for index, piece in enumerate(re.split(r"\{(T|[a-z][a-z0-9_]*)\}", paragraph)):
             if index % 2:
+                if piece == "T":
+                    segments.append((template["title"], True))
+                    continue
                 if piece not in values:
                     raise HTTPException(503, "internal")
                 segments.append((values[piece], True))
@@ -253,7 +256,9 @@ def install_templates(
         WHERE """
         + visible
         + """ AND v.version=(SELECT max(v2.version) FROM template_versions v2
-        WHERE v2.template_id=t.id) AND EXISTS (SELECT 1 FROM users
+        WHERE v2.template_id=t.id AND """
+        + visible.replace("v.", "v2.")
+        + """) AND EXISTS (SELECT 1 FROM users
         WHERE id=:owner AND deleted_at IS NULL)"""
     )
 
@@ -476,3 +481,66 @@ def install_templates(
                 {"id": uuid4(), "owner": current.id, **body.model_dump()},
             )
         return Response(status_code=204)
+
+
+class OwnerTemplate(StrictModel):
+    slug: str = Field(pattern=r"^[a-z0-9-]+$", max_length=200)
+    title: str = Field(min_length=1, max_length=200)
+    category: str = Field(min_length=1, max_length=100)
+    kind: str
+    fields: list[TemplateField]
+    body: list[list[str]]
+
+
+class OwnerCatalog(StrictModel):
+    approval: Literal["owner-approved-for-testing-2026-11-09"]
+    source: Literal["Civis.jsx"]
+    source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    templates: list[OwnerTemplate]
+
+
+async def import_owner_templates(engine: AsyncEngine, settings: Settings) -> int:
+    if not settings.owner_templates_file:
+        return 0
+    catalog = OwnerCatalog.model_validate_json(Path(settings.owner_templates_file).read_text())
+    async with engine.begin() as connection:
+        for item in catalog.templates:
+            import hashlib
+
+            digest = hashlib.sha256(item.model_dump_json().encode()).hexdigest()
+            tid = await connection.scalar(
+                text("""INSERT INTO templates(id,slug,title,category)
+                VALUES (:id,:slug,:title,:category) ON CONFLICT (slug) DO UPDATE
+                SET title=EXCLUDED.title,category=EXCLUDED.category
+                RETURNING id"""),
+                {
+                    "id": uuid5(NAMESPACE_URL, "civis:owner:" + item.slug),
+                    "slug": item.slug,
+                    "title": item.title,
+                    "category": item.category,
+                },
+            )
+            vid = uuid5(tid, digest)
+            if await connection.scalar(
+                text("SELECT id FROM template_versions WHERE id=:id"), {"id": vid}
+            ):
+                continue
+            await connection.execute(
+                text("""INSERT INTO template_versions
+                (id,template_id,version,fields,body,is_fake,status)
+                SELECT :id,:tid,COALESCE(max(version),0)+1,CAST(:fields AS jsonb),
+                CAST(:body AS jsonb),false,'approved' FROM template_versions
+                WHERE template_id=:tid"""),
+                {
+                    "id": vid,
+                    "tid": tid,
+                    "fields": json.dumps([f.model_dump() for f in item.fields]),
+                    "body": json.dumps(item.body),
+                },
+            )
+            await connection.execute(
+                text("""INSERT INTO content_provenance(id,source,is_fake,approved,enabled)
+                VALUES (:id,:source,false,true,true) ON CONFLICT (id) DO NOTHING"""),
+                {"id": vid, "source": catalog.approval + ":" + catalog.source_sha256},
+            )
+    return len(catalog.templates)

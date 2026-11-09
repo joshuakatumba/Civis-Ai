@@ -151,15 +151,101 @@ class AnthropicProvider:
                 raise ProviderUnavailable()
 
 
+class GroqDelta(BaseModel):
+    content: str | None = None
+
+
+class GroqChoice(BaseModel):
+    delta: GroqDelta = Field(default_factory=GroqDelta)
+    finish_reason: str | None = None
+
+
+class GroqUsage(BaseModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+
+class GroqMetadata(BaseModel):
+    usage: GroqUsage | None = None
+
+
+class GroqChunk(BaseModel):
+    choices: list[GroqChoice] = Field(default_factory=list)
+    usage: GroqUsage | None = None
+    error: dict[str, object] | None = None
+    x_groq: GroqMetadata | None = None
+
+
+class GroqProvider:
+    is_fake = False
+
+    def __init__(self, settings: Settings) -> None:
+        if not settings.groq_api_key or not settings.llm_model:
+            raise ProviderUnavailable()
+        self.settings = settings
+
+    async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[ModelEvent]:
+        settings = self.settings
+        assert settings.groq_api_key is not None
+        payload = {
+            "model": settings.llm_model,
+            "messages": [{"role": "system", "content": system}]
+            + [m.model_dump() for m in messages],
+            "max_completion_tokens": settings.llm_max_output_tokens,
+            "temperature": 0.2,
+            "stream": True,
+        }
+        usage = GroqUsage()
+        finish = "stop"
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60, connect=10)) as client:
+            async with client.stream(
+                "POST",
+                settings.groq_base_url.rstrip("/") + "/chat/completions",
+                headers={"Authorization": "Bearer " + settings.groq_api_key.get_secret_value()},
+                json=payload,
+            ) as response:
+                if response.status_code != 200:
+                    raise ProviderUnavailable()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        yield ModelEvent(
+                            kind="usage",
+                            input_tokens=usage.prompt_tokens,
+                            output_tokens=usage.completion_tokens,
+                            finish_reason=finish,
+                        )
+                        return
+                    chunk = GroqChunk.model_validate_json(data)
+                    if chunk.error:
+                        raise ProviderUnavailable()
+                    if chunk.usage:
+                        usage = chunk.usage
+                    elif chunk.x_groq and chunk.x_groq.usage:
+                        usage = chunk.x_groq.usage
+                    for choice in chunk.choices:
+                        if choice.delta.content:
+                            yield ModelEvent(kind="text", text=choice.delta.content)
+                        if choice.finish_reason:
+                            finish = choice.finish_reason
+                raise ProviderUnavailable()
+
+
 def provider_from_settings(settings: Settings) -> ModelProvider | None:
-    if (
-        settings.llm_provider == "fake"
-        or settings.fake_model
-        or (settings.environment != "production" and not settings.anthropic_api_key)
-    ):
+    if settings.fake_model or settings.llm_provider == "fake":
         if settings.environment == "production":
             raise ValueError("Fake provider prohibited in production")
         return FakeProvider.from_file(delay=float(os.environ.get("FAKE_STREAM_DELAY", "0.01")))
+    if settings.llm_provider == "groq":
+        return GroqProvider(settings)
     if settings.llm_provider == "anthropic":
         return AnthropicProvider(settings)
+    if (
+        settings.environment != "production"
+        and not settings.anthropic_api_key
+        and not settings.groq_api_key
+    ):
+        return FakeProvider.from_file()
     return None

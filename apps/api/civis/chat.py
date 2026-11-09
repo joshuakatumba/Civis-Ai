@@ -294,6 +294,7 @@ def install_chat(
                             text("""SELECT m.role, m.content FROM messages m
                     JOIN conversations c ON c.id=m.conversation_id
                     WHERE c.id=:id AND c.user_id=:owner AND m.status='complete'
+                    AND m.document_id IS NULL AND m.content<>''
                     ORDER BY m.created_at DESC,
                         CASE WHEN m.role='assistant' THEN 0 ELSE 1 END, m.id DESC LIMIT 60"""),
                             {"id": conversation_id, "owner": current.id},
@@ -302,7 +303,14 @@ def install_chat(
                     .mappings()
                     .all()
                 )
-                history = [Turn.model_validate(row) for row in reversed(rows)]
+                kept = []
+                characters = 0
+                for row in rows:
+                    if characters + len(row["content"]) > app.state.settings.llm_history_max_chars:
+                        break
+                    kept.append(row)
+                    characters += len(row["content"])
+                history = [Turn.model_validate(row) for row in reversed(kept)]
         except BaseException:
             with CancelScope(shield=True):
                 if spent:

@@ -1,5 +1,36 @@
 # Civis status
 
+## Immediate core testing — 2026-11-09
+
+Owner prioritised a small testable core, approved the existing Civis.jsx templates for testing,
+and authorised Groq with environment-only credentials. See [docs/CORE_TESTING.md](docs/CORE_TESTING.md).
+- Groq streaming adapter implemented with existing httpx; provider/model/key remain environment settings.
+- The configured model was verified against the account's available models. No key is committed or printed.
+- 62 original templates imported unchanged with the owner's testing approval; import is idempotent.
+- New drafts no longer hide the latest approved template version. FAKE fixtures remain separate.
+- Chat history is persisted per owner/conversation; each request uses up to 60 completed non-file messages,
+  limited by LLM_HISTORY_MAX_CHARS (default 24000). Older history remains in Postgres; no cross-chat memory/summarisation.
+- Unsubmitted forms remain browser state; generated documents/values reopen from the server.
+- PASS: six targeted tests including live Groq streaming/recall, real database/auth conversation memory/ownership,
+  quota and API smoke, and all 62 templates' preview/Word text equivalence.
+- PASS: live HTTP flow through the web proxy: signup, Groq stream, recall, history reload, quota, owner template
+  preview/generate/reopen/download and logout. Readiness ok; frontend HTTP 200; all nine services running locally.
+- PASS: lint, strict backend typecheck and API/web/worker container builds. No CSS/frontend dependency changes.
+- Browser automation could not run because the temporary external QA harness was absent; no new browser pass is claimed.
+- No new migration was needed. Existing fake-data tests and previous migration results remain within their stated scope.
+- Still outside this completed slice: verified legal RAG/citations, automatic template prefill and unfinished-form persistence.
+- AWS instance environment is not changed by local code/config updates; it needs the updated branch and its own private Groq settings.
+
+## Product-readiness audit — 2026-11-09
+
+The owner requested the full product task list, excluding deployment. See
+[docs/PRODUCT_READINESS.md](docs/PRODUCT_READINESS.md): 188 open acceptance tasks across
+research, source management, evaluation, approved drafting, uploads, accounts, customer flows,
+quota, payments, privacy, support and product quality. This is a code/spec audit, not a new
+implementation or test pass. Earlier fake-data integration results remain valid within their scope.
+Current CI still references removed frontend scripts; real legal RAG and approved-content release
+acceptance are incomplete. This register does not authorize a UI redesign or decide unresolved D9-D17 inputs.
+
 ## Active scope
 Integrate the supplied React UI with the existing backend, preserving CSS, markup and copy.
 The owner’s latest integration request supersedes the earlier port-only stop and Next.js milestone gates.

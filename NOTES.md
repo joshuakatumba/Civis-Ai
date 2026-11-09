@@ -30,3 +30,13 @@ The browser smoke found no JavaScript/unexpected console errors or account/passw
 ./scripts/dev.sh completed successfully; API readiness returned ok and both containers built with the fixes.
 No live Anthropic, microphone hardware, remote integration CI, production deployment or external telemetry check was run.
 Historical failure lines above are retained as history; current status is in STATUS.md and KNOWN_ISSUES.md.
+
+2026-11-09: Owner explicitly authorised Groq for testing and approved the existing Civis.jsx template use case.
+Added no dependencies: Groq uses existing httpx; key/model/provider are read from private environment configuration.
+Configured the supplied key privately for local tests without echoing it; rotate it because it was shared in chat.
+Copied all 62 original template definitions unchanged; recorded owner testing approval and idempotent import.
+Memory now excludes file cards and bounds model context by completed-message count/characters; full chat stays in Postgres.
+Six targeted tests passed, including live Groq recall, chat isolation, quota/API smoke and all-template Word/preview text checks.
+Live HTTP app flow passed through the web proxy; lint/typecheck and API/web/worker builds pass.
+Temporary browser tooling was absent; no new browser pass or remote CI result is claimed.
+No frontend redesign, CSS change, new dependency or new migration; RAG/prefill/form autosave remain separate work.

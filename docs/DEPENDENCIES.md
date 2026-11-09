@@ -110,3 +110,8 @@ No integration dependency was added; package.json and lock are unchanged from th
 The historical Next.js/TypeScript/Tailwind/SuperTokens browser SDK list above is not the active frontend.
 Existing pycryptodome 3.20.0 supplies authenticated encryption; stdlib zipfile/XML escaping supplies OOXML.
 Backend lint/typecheck now pass; this is not a dependency security audit.
+
+Groq testing integration adds no dependency: existing httpx 0.28.1 calls the Groq OpenAI-compatible v1 HTTP API.
+Official references consulted: https://console.groq.com/docs/openai, https://console.groq.com/docs/text-chat,
+https://console.groq.com/docs/api-reference and https://console.groq.com/docs/models.
+The active model is selected from the account's live available models and stored in private environment configuration.

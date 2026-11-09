@@ -4,6 +4,15 @@ React 18/plain JSX/Vite frontend based on the owner’s Civis.jsx, with an exist
 Postgres, Redis, SuperTokens and private S3 backend. The active integration passes local API and browser smoke checks; production and remote CI remain unverified.
 See [STATUS.md](STATUS.md), [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and [NOTES.md](NOTES.md).
 
+## Real Groq chat and existing templates
+
+See [docs/CORE_TESTING.md](docs/CORE_TESTING.md) for the short setup. Set LLM_PROVIDER=groq,
+FAKE_MODEL=false, GROQ_API_KEY and LLM_MODEL in the existing private .env. Changing the key
+requires only replacing that environment value and recreating API/worker containers.
+The owner-approved testing catalog imports the 62 original Civis.jsx templates without wording changes.
+Chat memory persists per conversation and sends bounded recent history to the model; it is not cross-chat memory.
+Unsubmitted forms, verified legal RAG and automatic template prefill remain unfinished.
+
 ## Local development
 
 Requirements: Docker with Compose v2, Python 3, and free localhost ports listed below.
@@ -27,8 +36,8 @@ For an older environment, enable `ALLOW_UNAPPROVED_TEMPLATES=true` to expose dev
 - Private storage endpoint: <http://localhost:59000> (downloads use five-minute signed URLs).
 
 Development uses explicitly labelled fake model/template/legal records from `content/dev-fake/`.
-The fake catalog contains three categories, including eleven templates in one category for paging.
-No legal corpus or approved legal wording is provided. `content/templates/` is untouched.
+Fake test fixtures remain available for automated tests. The normal testing catalog uses the owner-approved original templates.
+No real legal corpus is connected; owner approval of the original templates is recorded for testing. `content/templates/` is untouched.
 `REQUIRE_EMAIL_VERIFICATION=false` is a local-only setting because the supplied UI has no
 verification screen. Production refuses that setting, fake flags and fake loaded provenance.
 To use Anthropic locally, set `FAKE_MODEL=false`, `LLM_PROVIDER=anthropic`, `LLM_MODEL` and

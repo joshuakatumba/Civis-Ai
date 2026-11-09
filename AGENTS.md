@@ -17,7 +17,7 @@ frontend-reference/index.html is a visual reference only. Do not copy its code.
 - Cache, rate limits, queues: Redis.
 - Files: S3-compatible object storage, private bucket, signed URLs only.
 - Auth: see DECISIONS.md D1. Never implement password hashing, reset or verification yourself.
-- LLM: Anthropic API behind an internal provider interface. Model names come from environment config. Never hard-code.
+- LLM: Groq or Anthropic API behind an internal provider interface (owner approved Groq for testing on 2026-11-09). Model names come from environment config. Never hard-code.
 - Observability: OpenTelemetry, Sentry, structured JSON logs, Langfuse for LLM traces.
 - Everything runs as containers configured only by environment variables.
 
