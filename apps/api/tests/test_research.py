@@ -25,11 +25,12 @@ class FakeRetriever:
 class FakeStructuredModel:
     is_fake = True
 
-    def __init__(self, bad_id=False, supported=True, bad_quote=False):
+    def __init__(self, bad_id=False, supported=True, bad_quote=False, bad_evidence=False):
         self.calls = 0
         self.bad_id = bad_id
         self.supported = supported
         self.bad_quote = bad_quote
+        self.bad_evidence = bad_evidence
 
     async def stream(self, system, messages):
         self.calls += 1
@@ -41,6 +42,14 @@ class FakeStructuredModel:
                         if self.bad_quote
                         else "FAKE blue marker.",
                         "source_ids": ["FAKE-missing" if self.bad_id else "FAKE-source"],
+                        "evidence": [
+                            {
+                                "source_id": "FAKE-source",
+                                "quote": "FAKE invented evidence"
+                                if self.bad_evidence
+                                else "FAKE blue marker.",
+                            }
+                        ],
                     }
                 ],
                 "abstain": False,
@@ -69,7 +78,9 @@ async def test_grounded_answer_citations_reload_and_isolation(chat_clients):
     assert app.state.model_provider.calls == 2
 
 
-@pytest.mark.parametrize("failure", ["unknown_id", "unsupported", "bad_quote", "empty", "upstream"])
+@pytest.mark.parametrize(
+    "failure", ["unknown_id", "unsupported", "bad_quote", "bad_evidence", "empty", "upstream"]
+)
 async def test_grounding_fails_closed_and_refunds(chat_clients, failure):
     app, client, _ = chat_clients
     app.state.retriever = FakeRetriever()
@@ -77,6 +88,7 @@ async def test_grounding_fails_closed_and_refunds(chat_clients, failure):
         bad_id=failure == "unknown_id",
         supported=failure != "unsupported",
         bad_quote=failure == "bad_quote",
+        bad_evidence=failure == "bad_evidence",
     )
     if failure in ["empty", "upstream"]:
 
@@ -264,3 +276,30 @@ async def test_rate_limit_event_has_retry_and_refunds(chat_clients):
     assert '"code": "rate_limited"' in response.text and '"retry_after": 60' in response.text
     assert "event: delta" not in response.text
     assert (await client.get("/v1/me")).json()["prompts_left"] == 20
+
+
+async def test_one_supported_paragraph_never_releases_a_partial_answer(chat_clients):
+    app, client, _ = chat_clients
+
+    class MixedVerification(FakeStructuredModel):
+        async def stream(self, system, messages):
+            async for event in super().stream(system, messages):
+                if event.kind == "text":
+                    value = json.loads(event.text)
+                    if "segments" in value:
+                        value["segments"] *= 3
+                    else:
+                        value["supported"] = [1]
+                    event = event.model_copy(update={"text": json.dumps(value)})
+                yield event
+
+    app.state.retriever = FakeRetriever()
+    app.state.model_provider = MixedVerification()
+    cid = (await client.post("/v1/conversations", json={"mode": "research"})).json()["id"]
+    response = await client.post(
+        f"/v1/conversations/{cid}/messages", json={"content": "FAKE", "mode": "research"}
+    )
+    assert "event: error" in response.text and "event: delta" not in response.text
+    assert (await client.get("/v1/me")).json()["prompts_left"] == 20
+    stored = (await client.get(f"/v1/conversations/{cid}")).json()["messages"][-1]
+    assert stored["content"] == "" and stored["citations"] == []

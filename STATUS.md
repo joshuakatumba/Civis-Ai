@@ -1,5 +1,16 @@
 # Civis status
 
+## Whole-answer decision and evidence-first generation — 2026-11-09
+
+- Owner explicitly chose “Withhold the whole answer”; partial supported paragraphs are never released.
+- Added versioned v2 generation/verification prompts: one concise paragraph, literal evidence excerpts for every cited source, and explicit verifier indexes.
+- Evidence IDs must match cited source IDs, excerpts must be nonblank literal substrings, and the separate whole-answer support gate is unchanged.
+- PASS: 14 Research tests plus five retrieval metric checks, lint, strict API typecheck and API/worker builds. No UI/dependency/schema changes in this slice.
+- The one-of-three supported-paragraph regression confirms zero answer text/citations are released and quota is refunded.
+- Live dismissal-question browser check still returned an error after this generation fix. Do not claim a passing real answer, legal accuracy or production readiness; no further prompt-fix loop performed.
+- Next unresolved work: identify the current failing generation/evidence/verification stage with safe metadata, improve supported generation without relaxing withholding, and pass the real answer/citation/reload check.
+
+
 ## Owner screenshot fix — 2026-11-09
 
 - Reproduced dismissal question: Laws.Africa retrieval 200 and valid Groq generation, followed by verification 429 with Retry-After: 2.
@@ -8,8 +19,8 @@
 - PASS: 16 API tests (12 Research plus four chat checks), strict typecheck, lint, Vite/container builds and browser FAKE-history failure/reload/streaming-placeholder regression. No schema change.
 - Readiness wait now tolerates a connection reset during container startup. QA auth bucket expired normally; no limits weakened or Redis cleared.
 - Live browser still returned an error. Subsequent sanitized diagnosis: retrieval and both model calls returned 200; generator returned three paragraphs; verifier accepted only index 1. Existing all-or-nothing policy therefore withheld the answer.
-- Asked owner whether testing should show only supported paragraphs or keep withholding the whole answer. No partial-answer behavior implemented without that choice.
-- Continue from that policy answer; do not redo template/chat integration or weaken individual source checks. Research release/advocate accuracy acceptance and CI remain unverified.
+- Owner subsequently confirmed whole-answer withholding; no partial-answer behavior is enabled.
+- Continue under strict whole-answer withholding; do not redo template/chat integration or weaken individual source checks. Research release/advocate accuracy acceptance and CI remain unverified.
 
 ## Hosted Research implementation — 2026-11-09 (acceptance incomplete)
 

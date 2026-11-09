@@ -31,3 +31,9 @@ The owner stated existing templates were counsel-approved for this use case; the
 templates are copied unchanged into content/owner-supplied/templates.json and imported with that testing approval.
 This records the owner's instruction; it does not claim an independent legal review or verified legal RAG.
 Hosted Uganda Knowledge Base access and architecture are now approved for testing; production release/content coverage decisions remain unresolved.
+
+## Whole-answer verification — owner decision 2026-11-09
+
+Owner explicitly chose “Withhold the whole answer” when some paragraphs pass source verification
+and others fail. No partial verified answer is released. This overrides partial-removal behavior
+for the hosted Research integration. Improving generation must not lower individual source checks.

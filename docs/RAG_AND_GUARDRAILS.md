@@ -10,8 +10,10 @@ excludes future versions and non-current legislation, and interleaves collection
 comparing incompatible scores. Last three user questions (capped at 4000 characters) inform follow-ups;
 this is bounded context, not a separate semantic rewrite/classifier.
 
-Groq returns schema-validated answer segments with retrieved source IDs. No answer text streams until
-all IDs, literal quotations and a separate model support/authority check pass. Any rejection, missing
+Owner confirmed whole-answer withholding on 2026-11-09: any failed paragraph blocks all answer text.
+This supersedes partial-segment removal/threshold behavior in section 5 for hosted Research.
+Groq returns schema-validated answer segments with retrieved source IDs and exact evidence excerpts. No answer text streams until
+all IDs, evidence-to-source mappings, literal evidence/quotations and a separate model support/authority check pass. Any rejection, missing
 sources, malformed output, timeout or upstream failure withholds the answer and refunds before a delta.
 The original generic availability error is reused; an owner-supplied dedicated abstention message,
 urgent/refusal routing and full advocate safety/accuracy evaluation remain open. No replacement legal
@@ -89,3 +91,8 @@ Output:
 
 ## 8. Observability
 Trace every request: query, rewritten query, retrieved chunk ids, scores, reranker scores, abstain decision, verification removals, tokens, cost, latency. Message text in traces is redacted unless explicit consent is on file.
+
+Hosted prompt revision v2 requests one concise, independently supported paragraph rather than
+multiple speculative paragraphs. Every cited source requires a nonblank exact excerpt; excerpt
+matching does not replace the separate semantic support check. Verifier input includes explicit
+zero-based indexes. The whole-answer gate and quota refunds remain unchanged.

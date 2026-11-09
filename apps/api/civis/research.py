@@ -161,10 +161,17 @@ class LawsAfricaRetriever:
         return list(merged.values())
 
 
+class Evidence(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    source_id: str = Field(min_length=1, max_length=200)
+    quote: str = Field(min_length=1, max_length=2000)
+
+
 class Segment(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     text: str = Field(min_length=1, max_length=6000)
     source_ids: list[str] = Field(min_length=1, max_length=6)
+    evidence: list[Evidence] = Field(min_length=1, max_length=6)
 
 
 class Answer(BaseModel):
@@ -230,7 +237,7 @@ class GroundedProvider:
             ensure_ascii=False,
         )
         prompts = Path(__file__).parent / "prompts"
-        instruction = "\n" + (prompts / "research-grounded-v1.txt").read_text() + "\n" + context
+        instruction = "\n" + (prompts / "research-grounded-v2.txt").read_text() + "\n" + context
         answer = Answer.model_validate_json(await self.collect(system + instruction, history))
         if answer.abstain or not answer.segments:
             raise ProviderUnavailable()
@@ -238,13 +245,20 @@ class GroundedProvider:
         for segment in answer.segments:
             if any(identifier not in by_id for identifier in segment.source_ids):
                 raise ProviderUnavailable()
+            if {item.source_id for item in segment.evidence} != set(segment.source_ids):
+                raise ProviderUnavailable()
+            if any(
+                not item.quote.strip() or item.quote not in by_id[item.source_id].text
+                for item in segment.evidence
+            ):
+                raise ProviderUnavailable()
             cited = [by_id[identifier] for identifier in segment.source_ids]
             if re.search(r"https?://|www\.", segment.text, re.I):
                 raise ProviderUnavailable()
             for quote in re.findall(r'["“]([^"”]+)["”]', segment.text):
                 if not any(quote in source.text for source in cited):
                     raise ProviderUnavailable()
-        verification_prompt = (prompts / "research-verify-v1.txt").read_text()
+        verification_prompt = (prompts / "research-verify-v2.txt").read_text()
         verification = Verification.model_validate_json(
             await self.collect(
                 verification_prompt,
@@ -253,7 +267,10 @@ class GroundedProvider:
                         role="user",
                         content=json.dumps(
                             {
-                                "segments": [segment.model_dump() for segment in answer.segments],
+                                "segments": [
+                                    {"index": index, **segment.model_dump()}
+                                    for index, segment in enumerate(answer.segments)
+                                ],
                                 "user_messages": questions[-3:],
                                 "sources": [
                                     source.model_dump(exclude={"url", "knowledge_base"})

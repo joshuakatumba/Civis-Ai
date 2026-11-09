@@ -74,3 +74,11 @@ Subsequent live diagnosis returned 200 for both Groq calls, but the verifier acc
 three paragraphs. Current all-or-nothing policy withheld the answer. Owner was asked whether
 partial verified answers are desired for testing; no partial-answer policy has yet changed.
 Sixteen API checks and the separate FAKE browser failure-rendering regression pass.
+
+## Whole-answer policy and evidence-first generation
+
+Owner chose whole-answer withholding on 2026-11-09. No partial-answer option is enabled.
+Versioned v2 generation requires exact evidence excerpts for all cited source IDs and requests
+one concise paragraph limited to what those excerpts establish. Excerpts must match retrieved
+source text before the separate verifier runs. The verifier receives explicit paragraph indexes.
+The existing all-paragraphs-must-pass gate is preserved, including when only one of three passes.

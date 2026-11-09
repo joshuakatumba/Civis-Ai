@@ -66,3 +66,8 @@ Local browser QA signup hit its shared proxy auth bucket; allowed it to expire w
 After retry handling, live diagnosis showed three generated paragraphs but supported:[1]; all-or-nothing policy is the remaining observed blocker, not an assumed provider error.
 Asked owner whether to show verified partial answers; no support-check threshold or answer policy weakened while awaiting the response.
 Sixteen API checks and FAKE browser failure/reload/placeholder checks pass; real research acceptance remains open.
+
+Owner explicitly chose withholding the whole answer; no partial-response policy or support threshold was relaxed.
+Added evidence-first v2 prompts, literal evidence/source-ID validation and explicit verifier indexes; source excerpts remain transient.
+Fourteen research checks plus five retrieval metric checks pass, including one-of-three support withholding and invalid-evidence refunds.
+The v2 live dismissal browser check returned an error after its one generation fix; no further prompt loop or partial-answer workaround was applied.

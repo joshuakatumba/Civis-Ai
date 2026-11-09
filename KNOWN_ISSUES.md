@@ -62,5 +62,10 @@
 - Empty streaming placeholders are hidden; restored incomplete messages display the existing availability error.
 - Browser QA signup exhausted its local proxy auth bucket; the counter expires normally, with no production limit relaxed.
 
-- Follow-up live diagnosis after bounded retry: both Groq calls returned 200; verifier accepted one of three generated paragraphs. All-or-nothing policy still returns an error. Owner choice on verified partial answers is pending.
+- Follow-up live diagnosis after bounded retry: both Groq calls returned 200; verifier accepted one of three generated paragraphs. All-or-nothing policy still returns an error. Owner subsequently chose whole-answer withholding; no partial answers are allowed.
 - PASS: 16 API checks, builds/static checks, and separate FAKE browser regression for error display/reload and hidden empty streaming placeholders. Real grounded-browser acceptance remains open.
+
+## Strict verification follow-up
+- Owner confirmed whole-answer withholding; generation now requires exact source evidence for every cited source and one concise paragraph.
+- Explicit verifier indexes and new literal-evidence gates preserve the all-or-nothing policy; no failed paragraph can leak as a partial answer.
+- The live dismissal-question browser check still returns an error with v2 evidence-first generation. No passing live Research acceptance is claimed; the failure-stage diagnosis remains required.
