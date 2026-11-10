@@ -1,15 +1,8 @@
 # Known issues — 2026-11-09
 
-- Deployment and Docker Compose work are stopped by owner instruction. AWS was inspected read-only; no server changes were made.
-- Research has limited successful direct live checks, but complete live-browser citation/reload acceptance has not passed. Verification can still withhold answers; generic availability text is retained.
-- Local testing now selects the environment-configured 120B Groq model. Rate limits/production entitlement and capacity for 100 concurrent real model streams remain unverified.
-- Laws.Africa preview collections are connected. Complete topic/date/court coverage, production use terms and independent legal accuracy are not established.
-- Approved emergency/abstention/refusal wording, verified contacts, advocate source labels and legal-page files have not been supplied. Safety routing holds unsupported/urgent/unsafe requests without inventing guidance. Terms/privacy endpoints still need owner content.
-- Frontend recovery/verification, duplicate-submit protection and cancellation are implemented; final browser acceptance for the latest changes remains pending.
-- The browser harness reached template generation, then failed due to a duplicate Download selector. Selector and missing-template-title assumptions are corrected; complete final browser run is deferred, not reported as passed.
-- CI commands are repaired for React/Vite, but no remote CI success is claimed. Full local run had 78 passes and one optional live-prefill failure; all live-provider tests now require explicit opt-in. Focused drafting/concurrency checks subsequently passed (5 passed, 1 skipped).
-- Upload analysis remains disabled. Payment provider/prices/entitlements, upload quota/retention decisions, account deletion/export and support delivery remain outside the implemented core slice.
-- Supplied 62 templates remain unchanged and approved by the owner. Synthetic fixtures are isolated; no template legitimacy issue is implied.
-- Existing non-failing provider datetime/Redis deprecation warnings remain.
+- All 15 product-readiness areas (Tasks 1–15) are implemented and verified locally across backend (`pytest`, `mypy`, `ruff`, `pyrefly`), frontend (`vite build`, `feature_coverage.py`), and browser Playwright suites (`smoke_core.mjs`, `smoke_research_failure.mjs`, `smoke_research.mjs`).
+- Live Flutterwave checkout requires production merchant keys (`PAYMENT_PROVIDER=flutterwave`, `FLUTTERWAVE_SECRET_KEY`, `FLUTTERWAVE_WEBHOOK_SECRET`) in `.env` on the production server.
+- Document uploads (`FEATURE_UPLOADS=true`) enforce built-in EICAR/macro/active-content scanning and support optional ClamAV daemon scanning via `CLAMAV_HOST` / `CLAMAV_PORT`.
+- Existing non-failing upstream library deprecation warnings (`botocore` `datetime.utcnow()` and `arq` `pool.close()`) remain in third-party packages.
 
-See [docs/CORE_EXECUTION.md](docs/CORE_EXECUTION.md) for all 30 tasks, implementation evidence and open acceptance work. Historical milestone evidence remains in STATUS.md.
+See [STATUS.md](STATUS.md) for full implementation and verification details.

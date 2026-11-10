@@ -6,10 +6,8 @@ files = [
     "main.jsx",
     "App.jsx",
     "styles/civis.css",
-    "data/templates.js",
-    "data/kinds.js",
     "lib/doc.js",
-    "lib/storage.js",
+    "lib/http.js",
     "lib/api.js",
     "hooks/useMic.js",
 ]
@@ -25,8 +23,9 @@ files += [
         "Composer",
         "Templates",
         "DocPanel",
-        "Filled",
         "Modal",
+        "AccountRecovery",
+        "DocumentLibrary",
     )
 ]
 missing = [name for name in files if not (Path("apps/web/src") / name).is_file()]

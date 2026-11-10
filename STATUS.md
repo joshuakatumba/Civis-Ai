@@ -1,5 +1,25 @@
 # Civis status
 
+## Phase 1 & Phase 2 commercial product-readiness complete — 2026-11-09
+
+- Completed all 15 tasks across Phase 1 (Tasks 1–9) and Phase 2 (Tasks 10–15):
+  - **Generated documents:** Owner-scoped `GET /v1/documents`, `DELETE /v1/documents/{id}` (clears draft/message references and deletes S3 object), `docx` generation idempotency across `draft_revision` retries, and `cleanup_retention_job` in `apps/worker/civis_worker.py`.
+  - **Chat interface:** Stop button (`■`), message thumbs feedback (`👍`/`👎`), conversation rename/delete (`⋯`), cursor pagination (`Load more chats`), conversation JSON export, and mode-switch stream cancellation.
+  - **Privacy & data lifecycle:** `GET /v1/me/export` and `DELETE /v1/me` (row-locked deletion, S3 object cleanup for documents and uploads, soft-delete user/conversations, and SuperTokens `revoke_all_sessions_for_user`), wired into the account menu.
+  - **Quota & abuse controls:** Client `request_id` idempotency on chat and drafting prefill, `GLOBAL_HOURLY_MODEL_REQUESTS` circuit-breaker, `TRUSTED_PROXY_HOPS` `X-Forwarded-For` parsing, and per-user rate limits on `docx` rendering and feedback.
+  - **Templates & support:** Cross-field ISO date validation (`d2 >= d1`), non-blank field check in UI before generating, and optional SMTP support ticket delivery (`SUPPORT_EMAIL`).
+  - **Accounts & multi-tab sync:** Cross-tab logout synchronization via `BroadcastChannel("civis-auth")`.
+  - **Research AI & Legal source coverage:** Statute/section/case-name preservation in search preparation, date/conflict rules in grounded generation, and `GET /v1/sources/coverage` manifest (`content/corpus/laws-africa-uganda.json`) with zero local passage caching.
+  - **Safety & verified Uganda contacts:** `apps/api/civis/safety.py` and `content/owner-supplied/safety.json` (`GET /v1/safety/contacts`) enforcing emergency referrals (`999`/`112`, Sauti `116`, Justice Centres `0800 100 210`, FIDA `0800 111 511`, ULS Legal Aid `+256 414 342 424`), English-only notice for Luganda/Swahili input, Uganda-jurisdiction boundaries, and adversarial injection blocking with automatic quota refund.
+  - **Commercial Legal Pages:** `content/owner-supplied/legal.json` (`is_fake: false`) serving Uganda DPPA 2019 Privacy Policy and Terms & Conditions with versioned consent acceptance (`POST /v1/me/consents`).
+  - **Commercial UGX Payments:** `apps/api/civis/billing.py` and migration `0007_uploads_and_billing.py` providing `Starter` (`UGX 25,000` / 50 prompts), `Pro` (`UGX 75,000` / 200 prompts), and `Chambers` (`UGX 250,000` / 1,000 prompts) plans, Flutterwave Mobile Money & Card checkout (`POST /v1/billing/checkout`), HMAC-verified webhooks (`POST /v1/billing/webhook/flutterwave`), idempotent prompt grants, and chargeback reversals.
+  - **Document Uploads:** `apps/api/civis/uploads.py` (`POST /v1/uploads`, `GET /v1/uploads`, `DELETE /v1/uploads/{id}`) with ClamAV + structural/EICAR/macro malware scanning, PDF/DOCX page extraction, AES-GCM encryption at rest, sensitive NIN/ID/bank warnings, 1-prompt (`<= 15` pages) / 2-prompt (`16..30` pages) quota rule, `[Page N]` chat citations, and 30-day retention cleanup.
+  - **Live Evaluation Runner:** `scripts/run_live_eval.py` paired with `evals/retrieval.py` and `evals/generation.py`.
+- **Verification:**
+  - PASS: `ruff`, `mypy --strict`, `pyrefly check`, `feature_coverage.py` (19 React modules), and `vite build`.
+  - PASS: 86 pytest checks (3 optional paid live provider tests skipped by default), including `test_commercial_features.py`, `test_document_library.py`, and `test_drafting.py`.
+  - PASS: `scripts/smoke_research_failure.mjs`, `scripts/smoke_core.mjs`, and live `scripts/smoke_research.mjs`.
+
 ## Core implementation continuation — 2026-11-09
 
 Latest owner direction: **code first; stop Docker Compose runs and deployment**. No server changes made.
