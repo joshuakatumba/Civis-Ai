@@ -24,7 +24,7 @@ export async function http(path, { body, method, stream = false, retry = true, .
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     if (response.status === 401 && !path.startsWith("/auth/")) window.dispatchEvent(new Event("civis:unauthenticated"));
-    throw new ApiError(data.error?.code || "internal", data.error?.message || "Request failed.", response.status);
+    throw new ApiError(data.error?.code || "internal", data.error?.message || data.message || "Request failed.", response.status);
   }
   if (stream) return response;
   return response.status === 204 ? null : response.json();
@@ -39,5 +39,67 @@ export async function authenticate(mode, { email, pw, name }) {
       ? "An account with this email already exists. Log in instead." : "Email or password is incorrect."));
   }
   if (mode === "signup") await http("/v1/me", { method: "PATCH", body: { name: name.trim() } });
+  return http("/v1/me");
+}
+
+export async function startGoogleAuth() {
+  const redirectURI = `${window.location.origin}/auth/callback/google`;
+  let data;
+  try {
+    data = await http(
+      `/auth/authorisationurl?${new URLSearchParams({ thirdPartyId: "google", redirectURIOnProviderDashboard: redirectURI })}`,
+      { retry: false, headers: { rid: "thirdparty" } },
+    );
+  } catch (error) {
+    if (error?.code === "rate_limited") throw error;
+    throw new Error("Google sign-in is not configured yet.");
+  }
+  if (data?.status !== "OK" || !data.urlWithQueryParams) {
+    throw new Error("Google sign-in is not configured yet.");
+  }
+  const state = crypto.randomUUID();
+  try {
+    sessionStorage.setItem("civis-oauth-state", state);
+    if (data.pkceCodeVerifier) sessionStorage.setItem("civis-oauth-pkce", data.pkceCodeVerifier);
+    else sessionStorage.removeItem("civis-oauth-pkce");
+  } catch { /* Storage may be unavailable. */ }
+  const url = new URL(data.urlWithQueryParams);
+  url.searchParams.set("state", state);
+  window.location.assign(url.toString());
+}
+
+export async function completeGoogleAuth() {
+  const params = new URLSearchParams(window.location.search);
+  const queryParams = Object.fromEntries(params.entries());
+  let expectedState = null, pkceCodeVerifier = null;
+  try {
+    expectedState = sessionStorage.getItem("civis-oauth-state");
+    pkceCodeVerifier = sessionStorage.getItem("civis-oauth-pkce");
+    sessionStorage.removeItem("civis-oauth-state");
+    sessionStorage.removeItem("civis-oauth-pkce");
+  } catch { /* Storage may be unavailable. */ }
+  window.history.replaceState(null, "", "/");
+  if (queryParams.error) {
+    throw new Error("Google sign-in was cancelled.");
+  }
+  if (!queryParams.code || (expectedState && queryParams.state !== expectedState)) {
+    throw new Error("Google sign-in session expired. Try again.");
+  }
+  const redirectURI = `${window.location.origin}/auth/callback/google`;
+  const data = await http("/auth/signinup", {
+    retry: false,
+    headers: { rid: "thirdparty" },
+    body: {
+      thirdPartyId: "google",
+      redirectURIInfo: {
+        redirectURIOnProviderDashboard: redirectURI,
+        redirectURIQueryParams: queryParams,
+        ...(pkceCodeVerifier ? { pkceCodeVerifier } : {}),
+      },
+    },
+  });
+  if (data?.status !== "OK") {
+    throw new Error(data?.reason || "Could not sign in with Google.");
+  }
   return http("/v1/me");
 }
