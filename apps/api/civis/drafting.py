@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from civis.chat import HOURLY, LEASE
 from civis.config import Settings
 from civis.main import Profile, StrictModel
-from civis.providers import Turn
+from civis.providers import ProviderRateLimited, Turn
 from civis.quota import QuotaDenied, mutate
 from civis.templates import TemplateField, decrypt, encrypt, render_html, render_parts
 
@@ -34,6 +34,7 @@ class DraftSave(StrictModel):
 class PrefillRequest(StrictModel):
     description: str = Field(min_length=1, max_length=2000)
     conversation_id: Annotated[UUID, Field(strict=False)] | None = None
+    request_id: Annotated[UUID, Field(strict=False)] | None = None
 
 
 class Extraction(StrictModel):
@@ -97,7 +98,11 @@ def install_drafting(
         }
 
     async def save(
-        cid: UUID, body: DraftSave, owner: UUID, description: str | None = None
+        cid: UUID,
+        body: DraftSave,
+        owner: UUID,
+        description: str | None = None,
+        extracted_keys: set[str] | None = None,
     ) -> dict[str, Any]:
         template = await lookup(body.slug, owner, body.version)
         render_parts(template, body.values)
@@ -118,11 +123,13 @@ def install_drafting(
             current_revision = row["revision"] if row else 0
             if current_revision != body.revision:
                 raise HTTPException(409, "conflict")
-            same = (
-                row is not None
-                and row["template_version_id"] == template["version_id"]
-                and decrypt(settings, row["encrypted_values"]) == body.values
+            old_values = (
+                decrypt(settings, row["encrypted_values"]) if row is not None else {}
             )
+            is_new_template = (
+                row is None or row["template_version_id"] != template["version_id"]
+            )
+            same = not is_new_template and old_values == body.values
             revision = current_revision if same else current_revision + 1
             document_id = row["document_id"] if same and row else None
             await connection.execute(
@@ -147,16 +154,98 @@ def install_drafting(
                 mode='drafting',updated_at=now() WHERE id=:cid AND user_id=:owner"""),
                 {"title": template["title"], "cid": cid, "owner": owner},
             )
-            if (
-                description is not None
-                or row is None
-                or row["template_version_id"] != template["version_id"]
-            ):
-                notice = (
-                    f"I found the {template['title']} template. "
-                    "The form on the right has an example in each field. "
-                    "Replace the examples with your own details, then press Generate."
-                )
+            if description is not None or is_new_template:
+                t_fields = template["fields"]
+                if is_new_template:
+                    filled = [
+                        (f["label"], body.values.get(f["key"], "").strip())
+                        for f in t_fields
+                        if body.values.get(f["key"], "").strip()
+                        and (
+                            (extracted_keys and f["key"] in extracted_keys)
+                            or body.values.get(f["key"], "").strip()
+                            != f.get("example", "").strip()
+                        )
+                    ]
+                    if filled:
+                        summary = ", ".join(
+                            f"**{label}** ({val})" for label, val in filled[:4]
+                        )
+                        notice = (
+                            f"Here is your **{template['title']}** draft with {summary} filled in. "
+                            "You can share any other details right here in chat, or review the "
+                            "form on the right and click **Generate**."
+                        )
+                    else:
+                        sample_labels = ", ".join(
+                            f"**{f['label']}**" for f in t_fields[:3]
+                        )
+                        notice = (
+                            f"I've opened the **{template['title']}** template on the right. "
+                            f"Tell me the details you'd like to use — such as {sample_labels} — "
+                            "and I'll fill them in for you, or edit the fields directly and click **Generate**."
+                        )
+                else:
+                    changed = [
+                        (f["label"], body.values.get(f["key"], "").strip())
+                        for f in t_fields
+                        if body.values.get(f["key"], "").strip()
+                        and (
+                            old_values.get(f["key"], "") != body.values.get(f["key"], "")
+                            or (extracted_keys is not None and f["key"] in extracted_keys)
+                        )
+                    ]
+                    if not changed and description:
+                        desc_low = description.lower()
+                        changed = [
+                            (f["label"], body.values.get(f["key"], "").strip())
+                            for f in t_fields
+                            if body.values.get(f["key"], "").strip()
+                            and body.values.get(f["key"], "").strip().lower() in desc_low
+                        ]
+                    if len(changed) == 1:
+                        label, val = changed[0]
+                        remaining = [
+                            f["label"]
+                            for f in t_fields
+                            if f["label"] != label
+                            and (
+                                not body.values.get(f["key"], "").strip()
+                                or body.values.get(f["key"], "").strip()
+                                == f.get("example", "").strip()
+                            )
+                        ]
+                        next_hint = (
+                            f" You can also tell me the **{remaining[0]}**"
+                            + (f" or **{remaining[1]}**" if len(remaining) > 1 else "")
+                            + ", or click **Generate** whenever you're ready."
+                            if remaining
+                            else " Everything is filled in — click **Generate** whenever you're ready to download your document."
+                        )
+                        variants = [
+                            f"Done — I've set **{label}** to **{val}** in your **{template['title']}** draft.{next_hint}",
+                            f"Updated **{label}** to **{val}** in the preview on the right.{next_hint}",
+                            f"Got it, **{label}** is now **{val}**.{next_hint}",
+                        ]
+                        notice = variants[revision % len(variants)]
+                    elif len(changed) > 1:
+                        updates = ", ".join(
+                            f"**{label}** ({val})" for label, val in changed[:4]
+                        )
+                        notice = (
+                            f"I've updated {updates} in your **{template['title']}** draft. "
+                            "Let me know if you'd like to adjust anything else, or click **Generate** "
+                            "to create your Word document."
+                        )
+                    else:
+                        sample_labels = ", ".join(
+                            f"**{f['label']}**" for f in t_fields[:4]
+                        )
+                        notice = (
+                            f"Your **{template['title']}** is open on the right. "
+                            f"Just tell me what value to use for {sample_labels} "
+                            "(for example, *\"Set the full name to ...\"*) and I'll update it right away."
+                        )
                 await connection.execute(
                     text("""INSERT INTO messages
                     (id,conversation_id,role,content,status,created_at) VALUES
@@ -210,18 +299,30 @@ def install_drafting(
         if settings.require_email_verification and not current.verified:
             raise HTTPException(403, "email_unverified")
         initial_revision = 0
+        existing_slug: str | None = None
+        existing_values: dict[str, str] = {}
         prior_facts = ""
         if body.conversation_id:
             async with engine.connect() as connection:
                 await owned(connection, body.conversation_id, current.id)
-                initial_revision = int(
-                    await connection.scalar(
-                        text("""SELECT revision FROM conversation_drafts
-                    WHERE conversation_id=:cid AND user_id=:owner"""),
-                        {"cid": body.conversation_id, "owner": current.id},
+                draft_row = (
+                    (
+                        await connection.execute(
+                            text("""SELECT d.revision, d.encrypted_values, t.slug
+                    FROM conversation_drafts d
+                    JOIN template_versions v ON v.id=d.template_version_id
+                    JOIN templates t ON t.id=v.template_id
+                    WHERE d.conversation_id=:cid AND d.user_id=:owner"""),
+                            {"cid": body.conversation_id, "owner": current.id},
+                        )
                     )
-                    or 0
+                    .mappings()
+                    .one_or_none()
                 )
+                if draft_row is not None:
+                    initial_revision = int(draft_row["revision"] or 0)
+                    existing_slug = str(draft_row["slug"])
+                    existing_values = decrypt(settings, draft_row["encrypted_values"])
                 history = (
                     (
                         await connection.execute(
@@ -245,7 +346,10 @@ def install_drafting(
         count = int(await app.state.redis.eval(HOURLY, 1, f"messages:{current.id}"))
         if count > 30:
             raise HTTPException(429, "rate_limited")
-        request_id = uuid4()
+        global_count = int(await app.state.redis.eval(HOURLY, 1, "global:messages"))
+        if global_count > settings.global_hourly_model_requests:
+            raise HTTPException(429, "rate_limited")
+        request_id = body.request_id or uuid4()
         stream_key = f"streams:{current.id}"
         now = int(time.time() * 1000)
         if not await app.state.redis.eval(
@@ -293,20 +397,35 @@ def install_drafting(
                 "values (allowed field keys mapped to exact "
                 "substrings of the description or null), confidence (0 to 1). "
                 "For ambiguous requests use null. "
-                "Each catalog item is [slug,title,schema index]. "
+                + (
+                    f"The conversation currently has template '{existing_slug}' open; "
+                    f"keep slug as '{existing_slug}' unless the user asks for a different template, "
+                    "and prioritize the latest user message when updating fields. "
+                    if existing_slug
+                    else ""
+                )
+                + "Each catalog item is [slug,title,schema index]. "
                 "Schemas are [key,label] pairs.\n"
                 + json.dumps({"catalog": catalog, "schemas": schemas})
             )
 
             async def extract() -> str:
-                parts = []
-                async for event in app.state.model_provider.stream(
-                    system, [Turn(role="user", content=source_text)]
-                ):
-                    if event.kind == "text":
-                        parts.append(event.text)
-                    if sum(map(len, parts)) > 32000:
-                        raise ValueError("output_limit")
+                parts: list[str] = []
+                for attempt in range(2):
+                    parts = []
+                    try:
+                        async for event in app.state.model_provider.stream(
+                            system, [Turn(role="user", content=source_text)]
+                        ):
+                            if event.kind == "text":
+                                parts.append(str(event.text))
+                            if sum(map(len, parts)) > 32000:
+                                raise ValueError("output_limit")
+                        break
+                    except ProviderRateLimited as error:
+                        if attempt or parts or error.retry_after > 45:
+                            raise
+                        await asyncio.sleep(error.retry_after + 0.5)
                 return "".join(parts).strip()
 
             raw = await asyncio.wait_for(extract(), 90)
@@ -340,16 +459,29 @@ def install_drafting(
                     values[key] = value
                 missing = [key for key, value in values.items() if value is None]
                 if body.conversation_id:
+                    merged_values = {
+                        k: (
+                            v
+                            if v is not None
+                            else (
+                                existing_values.get(k, "")
+                                if selected.slug == existing_slug
+                                else ""
+                            )
+                        )
+                        for k, v in values.items()
+                    }
                     draft = await save(
                         body.conversation_id,
                         DraftSave(
                             slug=selected.slug,
                             version=template["version"],
-                            values={k: v or "" for k, v in values.items()},
+                            values=merged_values,
                             revision=initial_revision,
                         ),
                         current.id,
                         body.description,
+                        {k for k, v in values.items() if v is not None and v.strip()},
                     )
             else:
                 selected.slug = None
@@ -368,7 +500,9 @@ def install_drafting(
                                 "cid": body.conversation_id,
                                 "description": body.description,
                                 "notice": (
-                                    "Describe the document you need, or pick a template above"
+                                    "Tell me what kind of document you'd like to prepare — "
+                                    "such as a Lease Agreement, Affidavit, Employment Contract, "
+                                    "or Power of Attorney — or pick a template from the catalog."
                                 ),
                             },
                         )

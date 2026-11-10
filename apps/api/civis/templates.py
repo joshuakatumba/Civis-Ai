@@ -6,8 +6,11 @@ import html
 import io
 import json
 import re
+import smtplib
 import zipfile
 from collections.abc import Awaitable, Callable
+from datetime import date, datetime
+from email.message import EmailMessage
 from pathlib import Path
 from typing import Annotated, Any, Literal
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
@@ -39,6 +42,19 @@ class SeedTemplate(StrictModel):
     label: Literal["FAKE – development only"]
     fields: list[TemplateField] = Field(min_length=1, max_length=50)
     body: list[list[str]] = Field(max_length=100)
+
+
+class DocumentSummary(BaseModel):
+    id: UUID
+    name: str
+    filename: str
+    conversation_id: UUID | None
+    created_at: datetime
+
+
+class DocumentPage(BaseModel):
+    items: list[DocumentSummary]
+    next_cursor: UUID | None
 
 
 class RenderRequest(StrictModel):
@@ -128,13 +144,23 @@ async def seed_templates(engine: AsyncEngine, settings: Settings) -> None:
 
 
 def render_parts(
-    template: dict[str, Any], values: dict[str, str]
+    template: dict[str, Any], values: dict[str, str], *, validate_dates: bool = False
 ) -> list[tuple[str, list[tuple[str, bool]]]]:
     fields = [TemplateField.model_validate(f) for f in template["fields"]]
     if set(values) != {f.key for f in fields} or any(
         len(values[f.key]) > f.max_length for f in fields
     ):
         raise HTTPException(422, "validation_failed")
+    if validate_dates and "d1" in values and "d2" in values:
+        d1_val, d2_val = values["d1"].strip(), values["d2"].strip()
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", d1_val) and re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}", d2_val
+        ):
+            try:
+                if date.fromisoformat(d2_val) < date.fromisoformat(d1_val):
+                    raise HTTPException(422, "validation_failed")
+            except ValueError:
+                raise HTTPException(422, "validation_failed") from None
     output = []
     for heading, paragraph in template["body"]:
         segments = []
@@ -351,7 +377,18 @@ def install_templates(
             rows = (
                 (
                     await connection.execute(
-                        text(query + " ORDER BY t.title,t.slug LIMIT :limit OFFSET :offset"), params
+                        text(
+                            query
+                            + """ ORDER BY CASE WHEN :category='' THEN CASE t.title
+                            WHEN 'Lease Agreement' THEN 0
+                            WHEN 'Employment Contract Agreement' THEN 1
+                            WHEN 'Court Judgment' THEN 2
+                            WHEN 'Real Estate Property Power of Attorney' THEN 3
+                            WHEN 'Business Sale Agreement' THEN 4
+                            WHEN 'Disciplinary Form' THEN 5
+                            ELSE 99 END ELSE 99 END, t.title, t.slug LIMIT :limit OFFSET :offset"""
+                        ),
+                        params,
                     )
                 )
                 .mappings()
@@ -370,14 +407,55 @@ def install_templates(
     @app.post("/v1/templates/{slug}/render")
     async def render(slug: str, body: RenderRequest, current: Current) -> dict[str, Any]:
         template = await template_for(slug, current.id, body.version)
-        parts = render_parts(template, body.values)
+        parts = render_parts(template, body.values, validate_dates=True)
         preview = render_html(template["title"], parts)
         async with engine.connect() as connection:
             await owned_conversation(connection, body.conversation_id, current.id)
         if body.format == "html":
             return {"html": preview}
-        identifier = uuid4()
+        from civis.chat import HOURLY
+
+        render_count = int(
+            await app.state.redis.eval(HOURLY, 1, f"renders:{current.id}")
+        )
+        if render_count > 60:
+            raise HTTPException(429, "rate_limited", headers={"Retry-After": "3600"})
         filename = re.sub(r"[^A-Za-z0-9]+", "_", template["title"]) + ".docx"
+        if body.conversation_id and body.draft_revision is not None:
+            async with engine.connect() as connection:
+                existing_row = (
+                    (
+                        await connection.execute(
+                            text("""SELECT document_id,encrypted_values FROM conversation_drafts
+                            WHERE conversation_id=:cid AND user_id=:owner
+                            AND template_version_id=:version AND revision=:revision"""),
+                            {
+                                "cid": body.conversation_id,
+                                "owner": current.id,
+                                "version": template["version_id"],
+                                "revision": body.draft_revision,
+                            },
+                        )
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
+            if (
+                existing_row is not None
+                and existing_row["document_id"] is not None
+                and decrypt(settings, existing_row["encrypted_values"]) == body.values
+            ):
+                return {
+                    "id": str(existing_row["document_id"]),
+                    "name": template["title"],
+                    "slug": slug,
+                    "version": template["version"],
+                    "filename": filename,
+                    "html": preview,
+                    "fields": template["fields"],
+                    "values": body.values,
+                }
+        identifier = uuid4()
         key = f"{current.id}/{identifier}.docx"
         encrypted = encrypt(settings, body.values)
         await asyncio.to_thread(
@@ -439,7 +517,7 @@ def install_templates(
                         text("""INSERT INTO messages
                         (id,conversation_id,role,content,status,document_id,created_at) VALUES
                         (:user,:conversation,'user','Generate the draft','complete',NULL,now()),
-                        (:reply,:conversation,'assistant','Your draft is ready.','complete',NULL,
+                        (:reply,:conversation,'assistant',:reply_text,'complete',NULL,
                         now()+interval '1 microsecond'),
                         (:file,:conversation,'assistant',:title,'complete',:document,
                         now()+interval '2 microseconds')"""),
@@ -448,6 +526,10 @@ def install_templates(
                             "reply": uuid4(),
                             "file": uuid4(),
                             "conversation": body.conversation_id,
+                            "reply_text": (
+                                f"Here is your completed **{template['title']}**. "
+                                "You can open the preview or download the Word document below."
+                            ),
                             "title": template["title"],
                             "document": identifier,
                         },
@@ -495,6 +577,48 @@ def install_templates(
             raise HTTPException(404, "not_found")
         return dict(row)
 
+    @app.get("/v1/documents", response_model=DocumentPage)
+    async def documents(
+        current: Current,
+        limit: int = Query(default=30, ge=1, le=100),
+        cursor: UUID | None = None,
+    ) -> DocumentPage:
+        params: dict[str, Any] = {"owner": current.id, "limit": limit + 1}
+        position = ""
+        async with engine.connect() as connection:
+            if cursor:
+                previous = (
+                    await connection.execute(
+                        text("SELECT created_at FROM documents WHERE id=:id AND user_id=:owner"),
+                        {"id": cursor, "owner": current.id},
+                    )
+                ).scalar_one_or_none()
+                if previous is None:
+                    raise HTTPException(404, "not_found")
+                params.update(cursor=cursor, created=previous)
+                position = " AND (d.created_at,d.id) < (:created,:cursor)"
+            rows = (
+                (
+                    await connection.execute(
+                        text(
+                            "SELECT d.id,t.title AS name,d.filename,d.conversation_id,d.created_at "
+                            "FROM documents d JOIN template_versions v "
+                            "ON v.id=d.template_version_id "
+                            "JOIN templates t ON t.id=v.template_id WHERE d.user_id=:owner"
+                            + position
+                            + " ORDER BY d.created_at DESC,d.id DESC LIMIT :limit"
+                        ),
+                        params,
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return DocumentPage(
+            items=[DocumentSummary.model_validate(row) for row in rows[:limit]],
+            next_cursor=rows[limit - 1]["id"] if len(rows) > limit else None,
+        )
+
     @app.get("/v1/documents/{identifier}", response_model=DocumentResult)
     async def document(identifier: UUID, current: Current) -> DocumentResult:
         row = await document_for(identifier, current.id)
@@ -520,15 +644,73 @@ def install_templates(
         )
         return RedirectResponse(url, headers={"Cache-Control": "no-store"})
 
+    @app.delete("/v1/documents/{identifier}", status_code=204)
+    async def delete_document(identifier: UUID, current: Current) -> Response:
+        row = await document_for(identifier, current.id)
+        async with engine.begin() as connection:
+            await connection.execute(
+                text("""UPDATE conversation_drafts SET document_id=NULL
+                WHERE document_id=:id AND user_id=:owner"""),
+                {"id": identifier, "owner": current.id},
+            )
+            await connection.execute(
+                text("""UPDATE messages SET document_id=NULL
+                WHERE document_id=:id AND EXISTS (
+                    SELECT 1 FROM conversations c
+                    WHERE c.id=messages.conversation_id AND c.user_id=:owner)"""),
+                {"id": identifier, "owner": current.id},
+            )
+            deleted = await connection.execute(
+                text("DELETE FROM documents WHERE id=:id AND user_id=:owner RETURNING id"),
+                {"id": identifier, "owner": current.id},
+            )
+            if deleted.scalar_one_or_none() is None:
+                raise HTTPException(404, "not_found")
+        try:
+            await asyncio.to_thread(
+                storage.delete_object, Bucket=settings.s3_bucket, Key=row["storage_key"]
+            )
+        except Exception:
+            pass
+        return Response(status_code=204)
+
+    def send_support_email(ticket_id: UUID, category: str, message: str) -> None:
+        if not settings.support_email:
+            return
+        email = EmailMessage()
+        email["Subject"] = f"Civis support [{category}]"
+        email["From"] = settings.smtp_from
+        email["To"] = settings.support_email
+        email.set_content(f"Ticket: {ticket_id}\nCategory: {category}\n\n{message}")
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=5) as smtp:
+            if settings.environment == "production":
+                smtp.starttls()
+            if settings.smtp_username and settings.smtp_password:
+                smtp.login(settings.smtp_username, settings.smtp_password.get_secret_value())
+            smtp.send_message(email)
+
     @app.post("/v1/feedback", status_code=204)
     async def feedback(body: Ticket, current: Current) -> Response:
+        from civis.chat import HOURLY
+
+        fb_count = int(await app.state.redis.eval(HOURLY, 1, f"feedback:{current.id}"))
+        if fb_count > 30:
+            raise HTTPException(429, "rate_limited", headers={"Retry-After": "3600"})
+        ticket_id = uuid4()
         async with engine.begin() as connection:
             await owned_conversation(connection, body.conversation_id, current.id)
             await connection.execute(
                 text("""INSERT INTO feedback_tickets(id,user_id,category,message,conversation_id)
                 VALUES (:id,:owner,:category,:message,:conversation_id)"""),
-                {"id": uuid4(), "owner": current.id, **body.model_dump()},
+                {"id": ticket_id, "owner": current.id, **body.model_dump()},
             )
+        if settings.support_email:
+            try:
+                await asyncio.to_thread(
+                    send_support_email, ticket_id, body.category, body.message
+                )
+            except Exception:
+                pass
         return Response(status_code=204)
 
     from civis.drafting import install_drafting
