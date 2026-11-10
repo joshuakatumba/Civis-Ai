@@ -9,6 +9,7 @@ function Templates({ onPick, onError }) {
   const [total, setTotal] = useState(0);
   const [list, setList] = useState([]);
   const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let live = true;
     http("/v1/templates/categories").then((page) => {
@@ -18,18 +19,23 @@ function Templates({ onPick, onError }) {
   }, []);
   useEffect(() => {
     let live = true;
-    if (!cat && !q) { setList([]); setCount(0); return; }
+    setLoading(true);
+    const starterOnly = !cat && !q;
     const timer = setTimeout(async () => {
       try {
         let cursor = 0, items = [], page;
         do {
-          page = await http(`/v1/templates?${new URLSearchParams({ q, category: cat, limit: all ? 100 : 9, cursor })}`);
+          page = await http(`/v1/templates?${new URLSearchParams({ q, category: cat, limit: starterOnly ? 6 : all ? 100 : 9, cursor })}`);
           items.push(...page.items);
           cursor = page.next_cursor;
-        } while (all && cursor !== null && live);
-        if (live) { setList(items.map((item) => [item.title, item.category, item.slug])); setCount(page.total); }
+        } while (!starterOnly && all && cursor !== null && live);
+        if (live) {
+          setList(items.map((item) => [item.title, item.category, item.slug]));
+          setCount(starterOnly ? items.length : page.total);
+        }
       } catch (e) { if (live) onError(e.message); }
-    }, 200);
+      finally { if (live) setLoading(false); }
+    }, starterOnly ? 0 : 200);
     return () => { live = false; clearTimeout(timer); };
   }, [q, cat, all]);
   const shown = list;
@@ -50,7 +56,11 @@ function Templates({ onPick, onError }) {
             <Icon n="doc" /><span><b>{n}</b><i>{c}</i></span>
           </button>
         ))}
-        {!list.length && <p className="none">{cat || q ? "No templates match your search." : "Choose a category to see its templates."}</p>}
+        {!list.length && (
+          <p className="none" role={loading ? "status" : undefined}>
+            {loading ? "Loading templates\u2026" : cat || q ? "No templates match your search." : "Choose a category to see its templates."}
+          </p>
+        )}
         {count > 9 && !all && <button className="more" onClick={() => setAll(true)}>Show all {count}</button>}
       </div>
     </div>
