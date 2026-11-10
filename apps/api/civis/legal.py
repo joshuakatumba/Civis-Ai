@@ -19,13 +19,17 @@ class LegalDocument(BaseModel):
 
 def legal_documents(settings: Settings) -> list[LegalDocument]:
     path = settings.legal_content_file
-    if (
-        path is None
-        and settings.enable_test_fixtures
-        and settings.load_fake_seed
-        and settings.environment != "production"
-    ):
-        path = str(Path(__file__).resolve().parents[3] / "content/dev-fake/legal.json")
+    if path is None:
+        if (
+            settings.enable_test_fixtures
+            and settings.load_fake_seed
+            and settings.environment != "production"
+        ):
+            path = str(Path(__file__).resolve().parents[3] / "content/dev-fake/legal.json")
+        else:
+            candidate = Path(__file__).resolve().parents[3] / "content/owner-supplied/legal.json"
+            if candidate.exists():
+                path = str(candidate)
     if path is None:
         return []
     documents = TypeAdapter(list[LegalDocument]).validate_json(Path(path).read_text())

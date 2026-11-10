@@ -8,7 +8,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade() -> None:
     for statement in (
         "CREATE EXTENSION IF NOT EXISTS vector",
         """CREATE TABLE users (
@@ -84,7 +84,7 @@ def upgrade():
         op.execute(statement)
 
 
-def downgrade():
+def downgrade() -> None:
     for statement in (
         "DROP FUNCTION mutate_quota(uuid, uuid, text, integer, text)",
         "DROP TABLE content_provenance",

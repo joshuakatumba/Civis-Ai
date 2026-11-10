@@ -8,7 +8,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade() -> None:
     op.execute("""CREATE TABLE conversation_drafts (
         conversation_id uuid PRIMARY KEY REFERENCES conversations(id),
         user_id uuid NOT NULL REFERENCES users(id),
@@ -20,5 +20,5 @@ def upgrade():
     op.execute("CREATE INDEX conversation_drafts_owner ON conversation_drafts(user_id)")
 
 
-def downgrade():
+def downgrade() -> None:
     op.execute("DROP TABLE conversation_drafts")

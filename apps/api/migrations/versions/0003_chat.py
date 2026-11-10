@@ -8,7 +8,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade() -> None:
     for sql in (
         """CREATE TABLE conversations (
             id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id),
@@ -43,7 +43,7 @@ def upgrade():
         op.execute(sql)
 
 
-def downgrade():
+def downgrade() -> None:
     for sql in (
         "DROP TABLE message_feedback",
         "DROP TABLE messages",

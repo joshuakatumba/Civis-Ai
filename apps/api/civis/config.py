@@ -51,6 +51,17 @@ class Settings(BaseModel):
     laws_africa_base_url: str = "https://api.laws.africa/ai/v1"
     retrieval_top_k: int = Field(default=3, ge=1, le=10)
     retrieval_max_chars: int = Field(default=12000, ge=6000, le=48000)
+    support_email: str | None = None
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
+    global_hourly_model_requests: int = Field(default=600, ge=10, le=100000)
+    payment_provider: Literal["disabled", "flutterwave"] = "disabled"
+    flutterwave_secret_key: SecretStr | None = None
+    flutterwave_webhook_secret: SecretStr | None = None
+    flutterwave_base_url: str = "https://api.flutterwave.com/v3"
+    clamav_host: str | None = None
+    clamav_port: int = 3310
+    google_client_id: str | None = None
+    google_client_secret: SecretStr | None = None
 
     @classmethod
     def from_env(cls, source: Mapping[str, str] | None = None) -> "Settings":
@@ -116,7 +127,22 @@ class Settings(BaseModel):
         )
         data["retrieval_top_k"] = env.get("RETRIEVAL_TOP_K", "3")
         data["retrieval_max_chars"] = env.get("RETRIEVAL_MAX_CHARS", "12000")
+        data["support_email"] = env.get("SUPPORT_EMAIL") or None
+        data["trusted_proxy_hops"] = env.get("TRUSTED_PROXY_HOPS", "0")
+        data["global_hourly_model_requests"] = env.get("GLOBAL_HOURLY_MODEL_REQUESTS", "600")
+        data["payment_provider"] = env.get("PAYMENT_PROVIDER", "disabled")
+        data["flutterwave_secret_key"] = env.get("FLUTTERWAVE_SECRET_KEY") or None
+        data["flutterwave_webhook_secret"] = env.get("FLUTTERWAVE_WEBHOOK_SECRET") or None
+        data["flutterwave_base_url"] = env.get(
+            "FLUTTERWAVE_BASE_URL", "https://api.flutterwave.com/v3"
+        )
+        data["clamav_host"] = env.get("CLAMAV_HOST") or None
+        data["clamav_port"] = env.get("CLAMAV_PORT", "3310")
+        data["google_client_id"] = (env.get("GOOGLE_CLIENT_ID") or "").strip() or None
+        data["google_client_secret"] = (env.get("GOOGLE_CLIENT_SECRET") or "").strip() or None
         settings = cls.model_validate(data)
+        if bool(settings.google_client_id) != bool(settings.google_client_secret):
+            raise ValueError("Incomplete Google OAuth configuration")
         if settings.retrieval_provider == "laws_africa" and (
             not settings.laws_africa_api_key
             or not settings.laws_africa_base_url.startswith("https://")
@@ -130,8 +156,12 @@ class Settings(BaseModel):
             or not settings.s3_endpoint.startswith("https://")
         ):
             raise ValueError("Unsafe production transport configuration")
-        if settings.feature_uploads:
-            raise ValueError("Uploads disabled: scanning and M4b acceptance not verified")
+        if settings.feature_uploads and not settings.document_encryption_key:
+            raise ValueError("Uploads require DOCUMENT_ENCRYPTION_KEY")
+        if settings.payment_provider == "flutterwave" and (
+            not settings.flutterwave_secret_key or not settings.flutterwave_webhook_secret
+        ):
+            raise ValueError("Missing Flutterwave payment configuration")
         if production and settings.llm_provider == "fake":
             raise ValueError("Fake provider prohibited in production")
         if production and not settings.require_email_verification:

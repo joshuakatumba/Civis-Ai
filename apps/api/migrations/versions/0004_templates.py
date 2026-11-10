@@ -8,7 +8,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade() -> None:
     for statement in (
         """CREATE TABLE templates (id uuid PRIMARY KEY, slug text NOT NULL UNIQUE,
         title varchar(200) NOT NULL, category varchar(100) NOT NULL)""",
@@ -31,7 +31,7 @@ def upgrade():
         op.execute(statement)
 
 
-def downgrade():
+def downgrade() -> None:
     for statement in (
         "DROP TABLE feedback_tickets",
         "ALTER TABLE messages DROP COLUMN document_id",
