@@ -9,4 +9,13 @@ node_modules/
 .next/
 test-results/
 .coverage
+*.tsbuildinfo
+playwright-report/
 .dist/
+
+apps/web/dist/
+
+*.pem
+Civis-Ai/
+
+.env-live-*

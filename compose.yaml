@@ -67,6 +67,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       SUPERTOKENS_URI: http://auth:3567
       S3_ENDPOINT: http://storage:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:59000}
       SMTP_HOST: mail
       SMTP_PORT: "1025"
     ports: ["127.0.0.1:58000:8000"]
@@ -83,6 +84,13 @@ services:
     command: ["arq", "civis_worker.WorkerSettings"]
     depends_on:
       redis: {condition: service_healthy}
+  web:
+    build:
+      context: .
+      dockerfile: infra/web.Dockerfile
+    ports: ["127.0.0.1:53000:80"]
+    depends_on:
+      api: {condition: service_started}
 volumes:
   postgres:
   auth-db:

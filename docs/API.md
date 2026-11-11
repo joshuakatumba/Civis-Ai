@@ -2,6 +2,42 @@
 
 Base path /v1. JSON unless noted. Auth via the auth service's session. All errors use one envelope with a stable machine code and a user-safe message.
 
+## Current React integration contract (2026-11-07)
+
+Code is the authority. The endpoint table below also includes future scope; it is not a completion report.
+Authentication uses existing SuperTokens `/auth/signup`, `/auth/signin`, `/auth/signout` and
+`/auth/session/refresh`, with provider httpOnly cookies. Native fetch uses `rid`, `fdi-version`
+and `st-auth-mode` headers. `/v1/me` is the session/profile check.
+Only health/readiness and provider auth are public; legal and `/openapi.json` now require a session.
+
+| Flow | Implemented contract |
+|---|---|
+| Profile/theme | GET/PATCH `/v1/me`; preferences `{theme: light,dark,system}`; server `prompts_left` |
+| Conversations | POST `{mode}`; GET list `{items,next_cursor}`; GET detail `{messages}`; PATCH `{title}` |
+| Message stream | POST `{content,mode}`; fetch SSE `meta`, `delta:{text}`, `citations`, `done`, `error`; hosted Research buffers until source checks pass |
+| Category counts | GET `/v1/templates/categories` → `{items:[{name,count}],total}` |
+| Search/page | GET `/v1/templates?q=&category=&limit=9&cursor=0` → `{items,total,next_cursor}`; numeric offset cursor |
+| Field schema | GET `/v1/templates/{slug}` → title, category, slug, version, status, is_fake, fields |
+| Template prefill | POST `/v1/drafting/prefill` `{description,conversation_id?}` → `{slug,values,missing_fields,confidence,prompts_left,draft}`; one prompt, failures refunded |
+| Restore form | GET `/v1/conversations/{id}/draft` → draft snapshot or JSON null; owner only |
+| Autosave form | PATCH same route `{slug,version,values,revision}` → updated snapshot; revision 0 creates, stale revision returns 409 |
+| Preview | POST `/v1/templates/{slug}/render` `{values,format:"html"}` → `{html}`; escaped values in `.v` spans |
+| Generate | Same route, `format:"docx"`, optional conversation_id/version/draft_revision → document metadata; draft link requires matching version, revision and values |
+| Restore document | GET `/v1/documents/{id}` → `{id,name,slug,fields,values,filename,html}`; owner only |
+| Download | GET `/v1/documents/{id}/download` → 307, five-minute signed private URL; owner only |
+| Feedback | POST `/v1/feedback` `{category,message,conversation_id?}` → 204; stored, owner checked |
+| Legal | GET `/v1/legal/{terms,privacy}` → existing owner/fake document JSON |
+
+Field definitions use `{key,label,example,max_length}`. Development draft catalog serving requires
+ALLOW_UNAPPROVED_TEMPLATES; fake records never become approved. Generation, download and downstream API smoke assertions pass locally; see STATUS.md. No new screens are implied by existing backend routes.
+
+Prefill considers only approved non-FAKE templates. Extracted values must be literal substrings of the
+description or the last eight user messages in that owned conversation (prior facts capped at 6000 characters).
+Missing facts remain null/blank. Low confidence returns slug null. Threshold is set by
+DRAFTING_CONFIDENCE_THRESHOLD. Prefill shares chat's hourly/concurrent limits and atomic quota ledger.
+Draft reads/writes also use the existing authenticated request rate limit. Editing a generated draft clears
+its active download reference; prior generated documents remain immutable and available in chat history.
+
 ## Error codes
 unauthenticated (401), email_unverified (403), forbidden (403), not_found (404), validation_failed (422), quota_exhausted (402), rate_limited (429, with retry-after), model_unavailable (503), content_blocked (422), conflict (409), internal (500).
 Uploads: unsupported_file (422), file_too_large (413), unreadable_document (422), document_rejected (422), upload_quota_exceeded (429).
@@ -55,3 +91,15 @@ Server requirements: heartbeat comment every 15 seconds, cancel the upstream mod
 
 ## Rate limits (starting values, tune with load tests)
 Per user: 30 messages per hour, 2 concurrent streams. Per IP: 120 requests per minute. Auth endpoints: 10 attempts per 15 minutes per IP and per account. Feedback: 10 per hour. Uploads: per D14.
+
+## Hosted Research citations (2026-11-09)
+
+When RETRIEVAL_PROVIDER=laws_africa, Research SSE citations and restored assistant messages contain
+`[{id,title,url,date,knowledge_base}]`. These are checked provider source metadata, not model-authored URLs.
+No new endpoint is exposed. Existing auth, ownership, hourly/concurrent limits and atomic prompt spend apply.
+Retrieval/generation/verification failure emits the existing model_unavailable stream error and refunds
+before answer text is released. Heartbeats continue during buffering; no unsupported draft is streamed.
+
+Groq 429 responses are represented as an SSE error `{code:"rate_limited",message:"Try again later.",retry_after:seconds}`.
+Research retries once only for Retry-After <=15 seconds and before any model output; other rate-limit
+failures retain the retry delay and refund the prompt before a user-visible delta. No upstream error body is exposed.

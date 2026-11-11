@@ -22,7 +22,11 @@ class FakeSeed(BaseModel):
 
 async def seed() -> None:
     settings = Settings.from_env()
-    if settings.environment == "production" or not settings.load_fake_seed:
+    if (
+        settings.environment == "production"
+        or not settings.enable_test_fixtures
+        or not settings.load_fake_seed
+    ):
         raise SystemExit("Development seed requires LOAD_FAKE_SEED=true outside production")
     record = FakeSeed.model_validate(
         json.loads(Path("content/dev-fake/provenance.json").read_text())
@@ -38,9 +42,12 @@ async def seed() -> None:
                 VALUES (:id, :label, :is_fake, :approved, :enabled) ON CONFLICT (id) DO NOTHING"""),
                 record.model_dump(),
             )
+        from civis.templates import seed_templates
+
+        await seed_templates(engine, settings)
     finally:
         await engine.dispose()
-    print("Loaded FAKE – development only provenance marker; no legal corpus or templates loaded")
+    print("Loaded FAKE – development only provenance and template catalog; no legal corpus loaded")
 
 
 asyncio.run(seed())

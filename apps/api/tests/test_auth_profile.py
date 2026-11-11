@@ -50,7 +50,7 @@ async def test_authentication_verification_ownership_and_consents(database):
                     json={
                         "formFields": [
                             {"id": "email", "value": f"FAKE-{uuid4()}@example.invalid"},
-                            {"id": "password", "value": secrets.token_urlsafe(32)},
+                            {"id": "password", "value": ("FAKE-a1-" + secrets.token_urlsafe(32))},
                         ]
                     },
                 )
@@ -138,7 +138,7 @@ async def test_provider_password_reset_login_and_revocation():
                 json={
                     "formFields": [
                         {"id": "email", "value": email},
-                        {"id": "password", "value": secrets.token_urlsafe(32)},
+                        {"id": "password", "value": ("FAKE-a1-" + secrets.token_urlsafe(32))},
                     ]
                 },
             )
@@ -155,7 +155,7 @@ async def test_provider_password_reset_login_and_revocation():
             # Tokens remain provider-owned; never implement reset logic or inspect its tables.
             token = await create_reset_password_token("public", signup.json()["user"]["id"], email)
             assert hasattr(token, "token")
-            password = secrets.token_urlsafe(32)
+            password = ("FAKE-a1-" + secrets.token_urlsafe(32))
             reset = await client.post(
                 "/auth/user/password/reset",
                 json={
@@ -179,3 +179,43 @@ async def test_provider_password_reset_login_and_revocation():
             assert (await client.get("/v1/me")).status_code == 200
             assert (await client.post("/auth/signout")).json()["status"] == "OK"
             assert (await client.get("/v1/me")).status_code == 401
+
+
+async def test_google_oauth_configuration_and_provider_lookup():
+    from os import environ
+
+    import pytest
+    from civis.config import Settings
+    from pydantic import SecretStr
+
+    base = Settings.from_env()
+    with pytest.raises(ValueError, match="Incomplete Google OAuth configuration"):
+        env = dict(environ, GOOGLE_CLIENT_ID="FAKE-client-id", GOOGLE_CLIENT_SECRET="")
+        Settings.from_env(env)
+
+    app = create_app(
+        base.model_copy(
+            update={
+                "google_client_id": "FAKE-google-client-id",
+                "google_client_secret": SecretStr("FAKE-google-client-secret"),
+            }
+        )
+    )
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, client=(str(IPv6Address(uuid4().int)), 1234)),
+            base_url="http://localhost:58000",
+            headers={"rid": "thirdparty"},
+        ) as client:
+            response = await client.get(
+                "/auth/authorisationurl",
+                params={
+                    "thirdPartyId": "google",
+                    "redirectURIOnProviderDashboard": "http://localhost:53000/auth/callback/google",
+                },
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "OK"
+            assert "accounts.google.com" in data["urlWithQueryParams"]
+            assert "FAKE-google-client-id" in data["urlWithQueryParams"]

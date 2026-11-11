@@ -1,3 +1,14 @@
+> Current owner scope (2026-11-07): integrate the supplied React 18/plain JSX/Vite UI with existing FastAPI/SuperTokens services. Preserve markup, copy and CSS. The earlier Next.js rebuild and milestone ordering below are historical; current scope and evidence are tracked in STATUS.md.
+
+## Current delivery boundaries
+
+Existing React screens now call server auth, chat/quota/history, template, feedback, legal and theme routes.
+Local API/browser acceptance and backend static checks pass; remote CI and production remain unverified.
+See STATUS.md for the exact verified scope. Mic/install/share/invite/collapse retain the owner implementation.
+Stop, thumbs, citations UI, verification/reset screens, deletion/export, uploads and payments are deferred.
+No new UI elements, CSS or frontend dependencies are part of this integration.
+
+
 # Frontend feature to backend map
 
 Every visible feature appears here. If a frontend feature is missing from this table, it must not be built. If a row says NONE, the feature is client-only.

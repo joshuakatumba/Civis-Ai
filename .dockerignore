@@ -7,3 +7,13 @@ __pycache__
 .mypy_cache
 .ruff_cache
 frontend-reference
+**/node_modules
+**/.next
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+
+*.pem
+Civis-Ai/
+
+.env-live-*

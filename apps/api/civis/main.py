@@ -22,11 +22,13 @@ from supertokens_python.asyncio import get_user
 from supertokens_python.framework.fastapi import get_middleware
 from supertokens_python.recipe.emailverification.asyncio import is_email_verified
 from supertokens_python.recipe.session import SessionContainer
+from supertokens_python.recipe.session.asyncio import revoke_all_sessions_for_user
 from supertokens_python.recipe.session.framework.fastapi import verify_session
 
 from civis.auth import configure_auth
 from civis.config import Settings
 from civis.logs import configure_logging
+from civis.model_traces import ModelTracing
 from civis.quota import mutate
 from civis.telemetry import configure_telemetry, report_failure, request_tracer
 
@@ -63,6 +65,9 @@ class Profile(BaseModel):
     prompts_left: int
     preferences: Preferences
     verified: bool
+    verification_required: bool = False
+    free_allowance: int
+    uploads_enabled: bool = False
 
 
 class Status(BaseModel):
@@ -76,6 +81,13 @@ def error(code: str, status: int, retry: int | None = None) -> JSONResponse:
         "validation_failed": "Check the submitted fields.",
         "rate_limited": "Try again later.",
         "internal": "Service unavailable.",
+        "model_unavailable": "Response unavailable.",
+        "email_unverified": "Verify your email to continue.",
+        "quota_exhausted": "No prompts remaining.",
+        "uploads_disabled": "Document uploads are currently disabled.",
+        "malware_detected": "The uploaded file failed security checks.",
+        "storage_quota_exceeded": "Upload storage limit reached.",
+        "payment_unavailable": "Payment service is temporarily unavailable.",
     }
     return JSONResponse(
         {"error": {"code": code, "message": messages.get(code, "Request failed.")}},
@@ -90,6 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_auth(settings)
     telemetry = configure_telemetry()
     tracer = request_tracer(telemetry)
+    model_tracing = ModelTracing()
     engine = create_async_engine(
         settings.database_url.get_secret_value(),
         hide_parameters=True,
@@ -114,6 +127,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         try:
+            from civis.billing import ensure_plans
+
+            await ensure_plans(engine)
             if settings.environment == "production":
                 async with engine.connect() as connection:
                     unsafe = await connection.scalar(
@@ -128,10 +144,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await engine.dispose()
             await redis.aclose()
             await asyncio.to_thread(telemetry.shutdown)
+            await asyncio.to_thread(model_tracing.shutdown)
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine = engine
     app.state.redis = redis
+    app.state.settings = settings
+    app.state.model_tracing = model_tracing
+    from civis.providers import provider_from_settings
+
+    app.state.model_provider = provider_from_settings(settings)
+    from civis.research import LawsAfricaRetriever
+
+    app.state.retriever = (
+        LawsAfricaRetriever(settings) if settings.retrieval_provider == "laws_africa" else None
+    )
     app.add_middleware(get_middleware())  # type: ignore[no-untyped-call]
 
     async def rate(key: str, maximum: int, window: int) -> int | None:
@@ -149,13 +176,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> Response:
         try:
             ip = request.client.host if request.client else "unknown"
+            forwarded = request.headers.get("x-forwarded-for", "")
+            if settings.trusted_proxy_hops > 0 and forwarded:
+                chain = [part.strip() for part in forwarded.split(",") if part.strip()]
+                if chain:
+                    index = max(0, len(chain) - settings.trusted_proxy_hops)
+                    ip = chain[index]
             retry = await rate("ip:" + ip, 120, 60)
             if retry:
                 return error("rate_limited", 429, retry)
             if request.url.path.startswith("/auth/"):
-                retry = await rate("auth-ip:" + ip, 10, 900)
-                if retry:
-                    return error("rate_limited", 429, retry)
+                if request.url.path not in (
+                    "/auth/session/refresh",
+                    "/auth/signout",
+                    "/auth/authorisationurl",
+                ):
+                    retry = await rate("auth-ip:" + ip, 10, 900)
+                    if retry:
+                        return error("rate_limited", 429, retry)
                 if request.method == "POST":
                     body = await request.body()
                     if len(body) > 16384:
@@ -201,7 +239,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException) -> JSONResponse:
-        return error(str(exc.detail), exc.status_code)
+        retry = (
+            int(exc.headers["Retry-After"])
+            if exc.headers and "Retry-After" in exc.headers
+            else None
+        )
+        return error(str(exc.detail), exc.status_code, retry)
 
     async def profile(
         auth: Annotated[SessionContainer, Depends(verify_session(check_database=True))],
@@ -210,17 +253,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if user is None or not user.emails:
             raise HTTPException(401, "unauthenticated")
         verified = await is_email_verified(auth.get_recipe_user_id(), user.emails[0])
+        payload = auth.get_access_token_payload()
+        raw_name = payload.get("name")
+        default_name = raw_name.strip()[:200] if isinstance(raw_name, str) else ""
         async with engine.begin() as connection:
             await connection.execute(
-                text("""INSERT INTO users(id, auth_user_id, email)
-                VALUES (:id, :auth_id, :email) ON CONFLICT (auth_user_id) DO NOTHING"""),
-                {"id": uuid4(), "auth_id": auth.get_user_id(), "email": user.emails[0]},
+                text("""INSERT INTO users(id, auth_user_id, email, name)
+                VALUES (:id, :auth_id, :email, :name) ON CONFLICT (auth_user_id) DO UPDATE
+                SET name = CASE WHEN users.name = '' AND EXCLUDED.name <> ''
+                THEN EXCLUDED.name ELSE users.name END"""),
+                {
+                    "id": uuid4(),
+                    "auth_id": auth.get_user_id(),
+                    "email": user.emails[0],
+                    "name": default_name,
+                },
             )
             row = (
                 (
                     await connection.execute(
-                        text("""SELECT id, email, name, preferences FROM users
-                WHERE auth_user_id=:auth_id AND deleted_at IS NULL"""),
+                        text("""SELECT u.id, u.email, u.name, u.preferences,
+                        coalesce(lower(p.name), 'free') AS plan_name
+                        FROM users u
+                        LEFT JOIN plans p ON p.id = u.plan_id
+                        WHERE u.auth_user_id=:auth_id AND u.deleted_at IS NULL"""),
                         {"auth_id": auth.get_user_id()},
                     )
                 )
@@ -234,7 +290,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 ON CONFLICT DO NOTHING"""),
                 {"id": row["id"]},
             )
-        if verified and settings.free_prompts:
+        if (verified or not settings.require_email_verification) and settings.free_prompts:
             await mutate(
                 engine,
                 row["id"],
@@ -248,7 +304,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 text("SELECT balance FROM usage_balance WHERE user_id=:id"), {"id": row["id"]}
             )
         return Profile(
-            **row, plan="free", prompts_left=int(balance or 0) if verified else 0, verified=verified
+            id=row["id"],
+            email=str(row["email"]),
+            name=str(row["name"]),
+            preferences=Preferences.model_validate(row["preferences"]),
+            plan=str(row["plan_name"] or "free"),
+            prompts_left=int(balance or 0)
+            if verified or not settings.require_email_verification
+            else 0,
+            verified=verified,
+            verification_required=settings.require_email_verification,
+            free_allowance=settings.free_prompts,
+            uploads_enabled=settings.feature_uploads,
         )
 
     Current = Annotated[Profile, Depends(profile)]
@@ -301,5 +368,175 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 {"id": current.id, **body.model_dump()},
             )
         return Response(status_code=204)
+
+    @app.get("/v1/me/export")
+    async def export_account(current: Current) -> dict[str, object]:
+        async with engine.connect() as connection:
+            consents_rows = (
+                (
+                    await connection.execute(
+                        text("""SELECT document, version, accepted_at FROM consents
+                WHERE user_id=:id ORDER BY accepted_at"""),
+                        {"id": current.id},
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            conv_rows = (
+                (
+                    await connection.execute(
+                        text("""SELECT id, title, mode, created_at, updated_at
+                FROM conversations WHERE user_id=:id AND deleted_at IS NULL
+                ORDER BY created_at"""),
+                        {"id": current.id},
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            doc_rows = (
+                (
+                    await connection.execute(
+                        text("""SELECT d.id, t.title AS name, d.filename, d.conversation_id,
+                d.created_at FROM documents d
+                JOIN template_versions v ON v.id=d.template_version_id
+                JOIN templates t ON t.id=v.template_id
+                WHERE d.user_id=:id ORDER BY d.created_at"""),
+                        {"id": current.id},
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return {
+            "profile": current.model_dump(mode="json"),
+            "consents": [
+                {
+                    "document": r["document"],
+                    "version": r["version"],
+                    "accepted_at": r["accepted_at"].isoformat(),
+                }
+                for r in consents_rows
+            ],
+            "conversations": [
+                {
+                    "id": str(r["id"]),
+                    "title": r["title"],
+                    "mode": r["mode"],
+                    "created_at": r["created_at"].isoformat(),
+                    "updated_at": r["updated_at"].isoformat(),
+                }
+                for r in conv_rows
+            ],
+            "documents": [
+                {
+                    "id": str(r["id"]),
+                    "name": r["name"],
+                    "filename": r["filename"],
+                    "conversation_id": str(r["conversation_id"]) if r["conversation_id"] else None,
+                    "created_at": r["created_at"].isoformat(),
+                }
+                for r in doc_rows
+            ],
+        }
+
+    @app.delete("/v1/me", status_code=204)
+    async def delete_account(
+        auth: Annotated[SessionContainer, Depends(verify_session(check_database=True))],
+        current: Current,
+    ) -> Response:
+        keys: list[str] = []
+        async with engine.begin() as connection:
+            locked = await connection.scalar(
+                text("""SELECT id FROM users
+                WHERE id=:id AND deleted_at IS NULL FOR UPDATE"""),
+                {"id": current.id},
+            )
+            if locked is None:
+                raise HTTPException(401, "unauthenticated")
+            keys = list(
+                (
+                    await connection.execute(
+                        text("""SELECT storage_key FROM documents WHERE user_id=:id
+                        UNION ALL
+                        SELECT storage_key FROM uploaded_documents WHERE user_id=:id"""),
+                        {"id": current.id},
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            await connection.execute(
+                text("DELETE FROM uploaded_documents WHERE user_id=:id"),
+                {"id": current.id},
+            )
+            await connection.execute(
+                text("DELETE FROM conversation_drafts WHERE user_id=:id"),
+                {"id": current.id},
+            )
+            await connection.execute(
+                text("""UPDATE messages SET document_id=NULL
+                WHERE document_id IN (SELECT id FROM documents WHERE user_id=:id)"""),
+                {"id": current.id},
+            )
+            await connection.execute(
+                text("DELETE FROM documents WHERE user_id=:id"),
+                {"id": current.id},
+            )
+            await connection.execute(
+                text("""UPDATE conversations SET deleted_at=now(), updated_at=now()
+                WHERE user_id=:id AND deleted_at IS NULL"""),
+                {"id": current.id},
+            )
+            await connection.execute(
+                text("""UPDATE users SET deleted_at=now(), name='', updated_at=now()
+                WHERE id=:id"""),
+                {"id": current.id},
+            )
+        for key in keys:
+            try:
+                await asyncio.to_thread(
+                    storage.delete_object, Bucket=settings.s3_bucket, Key=key
+                )
+            except Exception:
+                pass
+        await revoke_all_sessions_for_user(auth.get_user_id())
+        return Response(status_code=204)
+
+    from civis.billing import install_billing
+
+    install_billing(app, engine, settings, profile)
+    from civis.chat import install_chat
+
+    install_chat(app, engine, redis, profile)
+    from civis.legal import install_legal
+
+    install_legal(app, settings, profile)
+    from civis.templates import install_templates
+
+    install_templates(app, engine, settings, profile)
+    from civis.uploads import install_uploads
+
+    install_uploads(app, engine, redis, settings, profile)
+
+    @app.get("/v1/safety/contacts")
+    async def safety_contacts(current: Current) -> dict[str, object]:
+        del current
+        from civis.safety import load_safety_config
+
+        return load_safety_config().model_dump()
+
+    @app.get("/v1/sources/coverage")
+    async def sources_coverage(current: Current) -> dict[str, object]:
+        del current
+        from pathlib import Path
+
+        manifest = Path(__file__).resolve().parents[3] / "content/corpus/laws-africa-uganda.json"
+        return dict(json.loads(manifest.read_text()))
+
+    @app.get("/openapi.json", include_in_schema=False)
+    async def schema(current: Current) -> dict[str, object]:
+        return app.openapi()
 
     return app

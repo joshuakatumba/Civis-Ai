@@ -1,5 +1,33 @@
 # Data model
 
+## Hosted Research citations (migration 0006)
+
+`messages.citations` is non-null JSONB (default []), containing only source ID/title/URL/date/collection metadata.
+It is saved atomically with completion of the owned assistant message and restored through owned history.
+Failed or incomplete messages keep an empty citation list. Retrieved passage text is not persisted by this migration.
+
+
+## Unfinished drafts (migration 0005)
+
+`conversation_drafts` has one owner-scoped row per conversation: template_version_id,
+AES-GCM encrypted_values, positive revision, nullable document_id and updated_at.
+Foreign keys reference conversations, users, template_versions and documents; an owner index supports isolation.
+Saves lock the owned conversation and compare the expected revision. Changed values/version increment the
+revision and clear document_id. Generation locks and checks the saved revision and values before attaching
+the immutable document. No auth tables or quota balances are modified by autosave.
+
+## Implemented integration subset (migration 0004)
+
+The table below describes the broader intended model. Current additions are deliberately smaller:
+`templates(id,slug,title,category)` and immutable version records with fields/body JSON,
+version, draft/approved status and is_fake; private `documents` reference owner, conversation,
+version, AES-256-GCM encrypted values, storage key and filename; `messages.document_id` links
+persisted file cards; `feedback_tickets` store owner, category, message and optional owned conversation.
+Foreign keys and an owner/date document index are applied through migration 0004, not ad-hoc changes.
+No auth-provider tables are modified. Shared catalog queries require an active authenticated owner;
+private documents and conversations filter by owner. This migration passed up/down/up on civis_test.
+API and browser generation/download acceptance now pass with the development fixtures.
+
 All ids UUID. All tables have created_at; mutable tables have updated_at. Foreign keys everywhere. Ownership checks in every query. The auth provider's user id is stored as auth_user_id.
 
 | Table | Key columns | Notes |

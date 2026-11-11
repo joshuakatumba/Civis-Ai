@@ -8,7 +8,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade() -> None:
     op.execute("""CREATE TABLE plans (
         id uuid PRIMARY KEY, name text NOT NULL,
         price_ugx integer NOT NULL CHECK (price_ugx >= 0),
@@ -21,6 +21,6 @@ def upgrade():
     )
 
 
-def downgrade():
+def downgrade() -> None:
     op.execute("ALTER TABLE users DROP CONSTRAINT users_plan_fk")
     op.execute("DROP TABLE plans")
