@@ -53,7 +53,7 @@ def _override_thirdparty_apis(original: APIInterface) -> APIInterface:
                 )
         return result
 
-    original.sign_in_up_post = sign_in_up_post  # type: ignore[method-assign,assignment]
+    original.sign_in_up_post = sign_in_up_post  # type: ignore[method-assign]
     return original
 
 

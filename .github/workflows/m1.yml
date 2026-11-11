@@ -30,7 +30,7 @@ jobs:
       - run: npm run build
         working-directory: apps/web
       - run: npm install --prefix /tmp/civis-qa --no-package-lock playwright@1.65.0
-      - run: /tmp/civis-qa/node_modules/.bin/playwright install --with-deps chromium
+      - run: /tmp/civis-qa/node_modules/.bin/playwright install chromium
       - run: |
           python scripts/run.py .venv/bin/alembic -c apps/api/alembic.ini upgrade head
           python scripts/run.py .venv/bin/python scripts/seed.py
