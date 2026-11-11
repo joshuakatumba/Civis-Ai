@@ -25,6 +25,7 @@ try {
  await page.getByLabel('Password',{exact:true}).fill(password);
  await page.getByRole('button',{name:'Create account',exact:true}).click();
  await page.getByRole('button',{name:'Drafting',exact:true}).click();
+ await page.getByRole('button',{name:'Turn on',exact:true}).click();
  const search=page.locator('.ts input');
  await search.waitFor();
  await search.fill('Lease');
