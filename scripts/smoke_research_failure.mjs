@@ -15,6 +15,7 @@ await page.route('**/v1/**',async route=>{
  const path=new URL(route.request().url()).pathname;
  let json;
  if(path==='/v1/me')json={id:'FAKE-user',email:'FAKE@example.invalid',name:'FAKE',prompts_left:20,preferences:{theme:'light'}};
+ else if(path==='/v1/uploads')json={items:[]};
  else if(path==='/v1/conversations')json={items:[conversation],next_cursor:null};
  else if(path==='/v1/conversations/FAKE-chat')json=conversation;
  else if(path.endsWith('/draft'))json=null;

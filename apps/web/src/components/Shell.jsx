@@ -179,17 +179,15 @@ function Shell({ user, dark, setDark, onLogout }) {
   useEffect(() => {
     let live = true;
     (async () => {
-      http("/v1/uploads").then((p) => { if (live && p?.items) setRecentUploads(p.items); }).catch(() => { });
       const page = await http("/v1/conversations?limit=30");
       if (!live) return;
       setHistoryCursor(page.next_cursor);
       const items = page.items;
       if (!items.length) return;
       setChats(items.map(fromConversation));
-      const firstResearch = items.find((item) => item.mode === "research");
-      if (selectedChat.current === null && firstResearch) {
-        selectedChat.current = firstResearch.id;
-        await loadChat(firstResearch.id);
+      if (selectedChat.current === null) {
+        selectedChat.current = items[0].id;
+        await loadChat(items[0].id);
       }
     })().catch((e) => say(e.message));
     return () => { live = false; };
