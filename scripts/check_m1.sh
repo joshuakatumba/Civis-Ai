@@ -6,7 +6,7 @@ export CIVIS_TEST_DATABASE=1
 export ENABLE_TEST_FIXTURES=true FAKE_MODEL=true LOAD_FAKE_SEED=true
 export ALLOW_UNAPPROVED_TEMPLATES=true FAKE_LEGAL_TEXT=true
 export LLM_PROVIDER=fake LLM_MODEL=FAKE-development RETRIEVAL_PROVIDER=disabled
-export REQUIRE_EMAIL_VERIFICATION=true
+export REQUIRE_EMAIL_VERIFICATION=true FEATURE_UPLOADS=false
 python3 scripts/run.py .venv/bin/alembic -c apps/api/alembic.ini upgrade head
 python3 scripts/run.py .venv/bin/alembic -c apps/api/alembic.ini downgrade base
 python3 scripts/run.py .venv/bin/alembic -c apps/api/alembic.ini upgrade head
