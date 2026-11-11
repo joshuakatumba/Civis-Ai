@@ -183,7 +183,8 @@ def install_drafting(
                         notice = (
                             f"I've opened the **{template['title']}** template on the right. "
                             f"Tell me the details you'd like to use — such as {sample_labels} — "
-                            "and I'll fill them in for you, or edit the fields directly and click **Generate**."
+                            "and I'll fill them in for you, or edit the fields directly "
+                            "and click **Generate**."
                         )
                 else:
                     changed = [
@@ -220,11 +221,20 @@ def install_drafting(
                             + (f" or **{remaining[1]}**" if len(remaining) > 1 else "")
                             + ", or click **Generate** whenever you're ready."
                             if remaining
-                            else " Everything is filled in — click **Generate** whenever you're ready to download your document."
+                            else (
+                                " Everything is filled in — click **Generate** whenever "
+                                "you're ready to download your document."
+                            )
                         )
                         variants = [
-                            f"Done — I've set **{label}** to **{val}** in your **{template['title']}** draft.{next_hint}",
-                            f"Updated **{label}** to **{val}** in the preview on the right.{next_hint}",
+                            (
+                                f"Done — I've set **{label}** to **{val}** "
+                                f"in your **{template['title']}** draft.{next_hint}"
+                            ),
+                            (
+                                f"Updated **{label}** to **{val}** "
+                                f"in the preview on the right.{next_hint}"
+                            ),
                             f"Got it, **{label}** is now **{val}**.{next_hint}",
                         ]
                         notice = variants[revision % len(variants)]
@@ -234,8 +244,10 @@ def install_drafting(
                         )
                         notice = (
                             f"I've updated {updates} in your **{template['title']}** draft. "
-                            "Let me know if you'd like to adjust anything else, or click **Generate** "
-                            "to create your Word document."
+                            + (
+                                "Let me know if you'd like to adjust anything else, "
+                                "or click **Generate** to create your Word document."
+                            )
                         )
                     else:
                         sample_labels = ", ".join(
@@ -244,7 +256,10 @@ def install_drafting(
                         notice = (
                             f"Your **{template['title']}** is open on the right. "
                             f"Just tell me what value to use for {sample_labels} "
-                            "(for example, *\"Set the full name to ...\"*) and I'll update it right away."
+                            + (
+                                "(for example, *\"Set the full name to ...\"*) "
+                                "and I'll update it right away."
+                            )
                         )
                 await connection.execute(
                     text("""INSERT INTO messages
@@ -399,8 +414,11 @@ def install_drafting(
                 "For ambiguous requests use null. "
                 + (
                     f"The conversation currently has template '{existing_slug}' open; "
-                    f"keep slug as '{existing_slug}' unless the user asks for a different template, "
-                    "and prioritize the latest user message when updating fields. "
+                    + (
+                        f"keep slug as '{existing_slug}' unless the user asks "
+                        "for a different template, and prioritize the latest user "
+                        "message when updating fields. "
+                    )
                     if existing_slug
                     else ""
                 )

@@ -181,7 +181,8 @@ def install_chat(
                     await connection.execute(
                         text(
                             """SELECT m.id, m.role, m.content, m.status,
-                m.created_at, m.document_id, m.citations, m.input_tokens, m.output_tokens FROM messages m
+                m.created_at, m.document_id, m.citations, m.input_tokens,
+                m.output_tokens FROM messages m
                 JOIN conversations c ON c.id=m.conversation_id
                 WHERE c.id=:id AND c.user_id=:owner AND c.deleted_at IS NULL"""
                             + runtime_only
