@@ -91,27 +91,33 @@ function Shell({ user, dark, setDark, onLogout }) {
     }
   };
   const persistDraft = (id, snapshot) => {
-    const task = (draftQueue.current.get(id) || Promise.resolve()).catch(() => {}).then(async () => {
+    const task = (draftQueue.current.get(id) || Promise.resolve()).catch(() => { }).then(async () => {
       let previous = draftCache.current.get(id);
       if (previous?.slug === snapshot.slug && previous.version === snapshot.version && sameVals(previous.values, snapshot.vals)) return previous;
       let saved;
       try {
-        saved = await http(`/v1/conversations/${id}/draft`, { method: "PATCH", body: {
-          slug: snapshot.slug, version: snapshot.version, values: snapshot.vals, revision: previous?.revision ?? snapshot.revision ?? 0,
-        } });
+        saved = await http(`/v1/conversations/${id}/draft`, {
+          method: "PATCH", body: {
+            slug: snapshot.slug, version: snapshot.version, values: snapshot.vals, revision: previous?.revision ?? snapshot.revision ?? 0,
+          }
+        });
       } catch (err) {
         if (err?.status === 409) {
           const latest = await http(`/v1/conversations/${id}/draft`);
-          saved = await http(`/v1/conversations/${id}/draft`, { method: "PATCH", body: {
-            slug: snapshot.slug, version: snapshot.version, values: snapshot.vals, revision: latest?.revision || 0,
-          } });
+          saved = await http(`/v1/conversations/${id}/draft`, {
+            method: "PATCH", body: {
+              slug: snapshot.slug, version: snapshot.version, values: snapshot.vals, revision: latest?.revision || 0,
+            }
+          });
         } else throw err;
       }
       draftCache.current.set(id, saved);
-      upd(id, (c) => c.doc?.slug === saved.slug && c.doc.version === saved.version ? { ...c, doc: {
-        ...c.doc, revision: saved.revision, html: saved.html,
-        ...(sameVals(c.doc.vals, snapshot.vals) ? { id: saved.id, done: !!saved.id } : {}),
-      } } : c);
+      upd(id, (c) => c.doc?.slug === saved.slug && c.doc.version === saved.version ? {
+        ...c, doc: {
+          ...c.doc, revision: saved.revision, html: saved.html,
+          ...(sameVals(c.doc.vals, snapshot.vals) ? { id: saved.id, done: !!saved.id } : {}),
+        }
+      } : c);
       return saved;
     });
     draftQueue.current.set(id, task);
@@ -173,7 +179,7 @@ function Shell({ user, dark, setDark, onLogout }) {
   useEffect(() => {
     let live = true;
     (async () => {
-      http("/v1/uploads").then((p) => { if (live && p?.items) setRecentUploads(p.items); }).catch(() => {});
+      http("/v1/uploads").then((p) => { if (live && p?.items) setRecentUploads(p.items); }).catch(() => { });
       const page = await http("/v1/conversations?limit=30");
       if (!live) return;
       setHistoryCursor(page.next_cursor);
@@ -236,7 +242,7 @@ function Shell({ user, dark, setDark, onLogout }) {
 
   const switchMode = async (nextMode) => {
     if (sending.current) request.current?.abort();
-    try { await flushDraft(); } catch {}
+    try { await flushDraft(); } catch { }
     setSupportState(null);
     setAttachments([]);
     selectedChat.current = null;
@@ -290,13 +296,15 @@ function Shell({ user, dark, setDark, onLogout }) {
         ),
         actions: [
           { label: "Not now" },
-          { label: "Continue to payment", pri: true, fn: async () => {
-            if (!chosen) return;
-            try {
-              const res = await http("/v1/billing/checkout", { body: { plan_id: chosen } });
-              if (res.checkout_url) window.location.assign(res.checkout_url);
-            } catch (error) { say(error.message); }
-          } },
+          {
+            label: "Continue to payment", pri: true, fn: async () => {
+              if (!chosen) return;
+              try {
+                const res = await http("/v1/billing/checkout", { body: { plan_id: chosen } });
+                if (res.checkout_url) window.location.assign(res.checkout_url);
+              } catch (error) { say(error.message); }
+            }
+          },
         ],
       });
     } catch (error) {
@@ -370,15 +378,17 @@ function Shell({ user, dark, setDark, onLogout }) {
     }
     upd(id, (c) => ({ ...c, title: c.msgs.length ? c.title : t.length > 34 ? t.slice(0, 34) + "\u2026" : t, msgs: [...c.msgs, { r: "u", t }, { r: "a", t: "", streaming: true }] }));
     try {
-      await askCivis({ id, mode, content: t, attachmentIds: currentAttachments, signal: request.current.signal, onEvent: (event, data) => {
-        if (event === "meta") {
-          setLeft(data.prompts_left);
-          upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, id: data.assistant_message_id } : m) }));
+      await askCivis({
+        id, mode, content: t, attachmentIds: currentAttachments, signal: request.current.signal, onEvent: (event, data) => {
+          if (event === "meta") {
+            setLeft(data.prompts_left);
+            upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, id: data.assistant_message_id } : m) }));
+          }
+          if (event === "citations") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, citations: data } : m) }));
+          if (event === "delta") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, t: m.t + data.text } : m) }));
+          if (event === "done") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, input_tokens: data.input_tokens, output_tokens: data.output_tokens } : m) }));
         }
-        if (event === "citations") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, citations: data } : m) }));
-        if (event === "delta") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, t: m.t + data.text } : m) }));
-        if (event === "done") upd(id, (c) => ({ ...c, msgs: c.msgs.map((m) => m.streaming ? { ...m, input_tokens: data.input_tokens, output_tokens: data.output_tokens } : m) }));
-      } });
+      });
     } catch (e) {
       if (request.current?.signal.aborted) return;
       setInput(t);
@@ -486,12 +496,14 @@ function Shell({ user, dark, setDark, onLogout }) {
         body: <div style={{ whiteSpace: "pre-wrap", maxHeight: "55vh", overflowY: "auto" }}>{data.text}</div>,
         actions: [
           { label: "Close" },
-          { label: "Accept", pri: true, fn: async () => {
-            try {
-              await http("/v1/me/consents", { body: { document, version: data.version } });
-              say(`${title} accepted`);
-            } catch (e) { say(e.message); }
-          } },
+          {
+            label: "Accept", pri: true, fn: async () => {
+              try {
+                await http("/v1/me/consents", { body: { document, version: data.version } });
+                say(`${title} accepted`);
+              } catch (e) { say(e.message); }
+            }
+          },
         ],
       });
     } catch (e) { say(e.message); }
@@ -533,12 +545,14 @@ function Shell({ user, dark, setDark, onLogout }) {
     body: <p>This permanently deletes your Civis account, conversations and documents.</p>,
     actions: [
       { label: "Cancel" },
-      { label: "Delete account", pri: true, fn: async () => {
-        try {
-          await http("/v1/me", { method: "DELETE" });
-          window.dispatchEvent(new Event("civis:unauthenticated"));
-        } catch (error) { say(error.message); }
-      } },
+      {
+        label: "Delete account", pri: true, fn: async () => {
+          try {
+            await http("/v1/me", { method: "DELETE" });
+            window.dispatchEvent(new Event("civis:unauthenticated"));
+          } catch (error) { say(error.message); }
+        }
+      },
     ],
   });
   const menuAct = {
